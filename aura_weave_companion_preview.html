@@ -1,0 +1,2643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aura-Weave Companion — Personal Health & Disaster Safety</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @keyframes breathePulse {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.08); opacity: 1; }
+    }
+    .animate-breathe {
+      animation: breathePulse 3.8s ease-in-out infinite;
+    }
+    @keyframes auraPing {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      70%, 100% { transform: scale(1.35); opacity: 0; }
+    }
+    .animate-aura {
+      animation: auraPing 2.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+    @keyframes beaconFlash {
+      0%, 100% { opacity: 1; filter: brightness(1.4); }
+      50% { opacity: 0.3; filter: brightness(0.8); }
+    }
+    .animate-beacon {
+      animation: beaconFlash 0.7s infinite;
+    }
+  </style>
+</head>
+<body class="bg-stone-100 text-stone-800 antialiased p-2 sm:p-4 min-h-screen flex flex-col items-center justify-start font-sans">
+
+  <!-- TOP DEMO CONTROLS BAR -->
+  <div class="w-full max-w-md sm:max-w-2xl bg-white/95 backdrop-blur border border-stone-200 shadow-sm rounded-2xl p-3 mb-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+    <div class="flex items-center gap-2">
+      <div class="w-6 h-6 rounded-lg bg-teal-600 text-white flex items-center justify-center font-bold text-xs">AW</div>
+      <div>
+        <span class="font-bold text-stone-900">Aura-Weave Companion</span>
+        <span class="ml-1 text-[10px] bg-teal-50 text-teal-700 px-1.5 py-0.5 rounded border border-teal-200 font-semibold">Personal</span>
+      </div>
+    </div>
+
+    <!-- Scenarios -->
+    <div class="flex items-center gap-1 bg-stone-100 p-1 rounded-xl">
+      <span class="text-stone-500 font-medium px-1.5 hidden sm:inline">Scenario:</span>
+      <button onclick="setScenario('normal')" id="btn-scen-normal" class="px-2 py-1 rounded-lg font-semibold transition bg-emerald-600 text-white text-[11px]">Calm</button>
+      <button onclick="setScenario('warning')" id="btn-scen-warning" class="px-2 py-1 rounded-lg font-medium transition text-stone-600 hover:text-stone-900 text-[11px]">Warning</button>
+      <button onclick="setScenario('critical')" id="btn-scen-critical" class="px-2 py-1 rounded-lg font-medium transition text-stone-600 hover:text-stone-900 text-[11px]">Critical</button>
+      <button onclick="setScenario('disconnected')" id="btn-scen-disconnected" class="px-2 py-1 rounded-lg font-medium transition text-stone-600 hover:text-stone-900 text-[11px]">No Vest</button>
+    </div>
+
+    <!-- Web Bluetooth Hardware / Telemetry Source Controls -->
+    <div class="flex items-center gap-1 bg-stone-100 p-1 rounded-xl">
+      <button onclick="openBleModal()" id="demo-ble-btn" class="px-2.5 py-1 rounded-lg font-bold bg-stone-200 hover:bg-stone-300 text-stone-800 text-[11px] flex items-center gap-1 transition">
+        <span>⚡ Bluetooth Vest</span>
+      </button>
+      <button onclick="toggleDataSourceMode()" id="demo-source-btn" class="px-2 py-1 rounded-lg font-bold bg-teal-50 border border-teal-300 text-teal-700 text-[10px] transition" title="Toggle between real BLE and simulated ticks">
+        🧪 Sim Ticks
+      </button>
+    </div>
+
+    <!-- Companion Mode Switcher in Demo Bar -->
+    <div class="flex items-center gap-1 bg-stone-100 p-1 rounded-xl">
+      <span class="text-stone-500 font-medium px-1.5 hidden sm:inline">Mode:</span>
+      <button onclick="setCompanionMode('daily')" id="demo-mode-daily" class="px-2 py-1 rounded-lg font-bold bg-teal-700 text-white text-[11px]">Solo / Daily</button>
+      <button onclick="setCompanionMode('disaster')" id="demo-mode-disaster" class="px-2 py-1 rounded-lg font-medium text-stone-600 hover:text-stone-900 text-[11px]">🚨 Disaster</button>
+    </div>
+  </div>
+
+  <!-- PHONE CONTAINER -->
+  <div id="phone-container" class="w-full max-w-md bg-stone-50 border-[6px] border-stone-800 rounded-[44px] shadow-2xl overflow-hidden min-h-[780px] flex flex-col transition-all">
+    
+    <!-- Phone Status Header -->
+    <div class="bg-stone-900 text-stone-200 px-5 pt-3 pb-2 text-xs flex items-center justify-between select-none">
+      <div class="flex items-center gap-1 font-medium">
+        <span>9:41</span>
+        <span class="text-[10px] text-stone-400">AM</span>
+      </div>
+      
+      <!-- Vest Status Button -->
+      <button onclick="openBleModal()" id="vest-status-pill" class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-teal-900/80 text-teal-300 border border-teal-700/60 cursor-pointer" title="Click to manage Bluetooth vest connection">
+        <span class="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse"></span>
+        <span id="vest-status-text">Vest Connected (84%)</span>
+      </button>
+
+      <div class="flex items-center gap-1 text-[10px] text-stone-300">
+        <span>5G</span>
+        <span>⚡ 84%</span>
+      </div>
+    </div>
+
+    <!-- Standalone Banner (Shown when disconnected) -->
+    <div id="standalone-banner" class="hidden bg-gradient-to-r from-amber-500/15 via-emerald-500/10 to-teal-500/15 border-b border-amber-200 px-4 py-2 text-xs text-stone-700 flex items-center justify-between">
+      <div>
+        <p class="font-bold text-stone-900 text-[12px]">Vest not connected — showing general area safety info</p>
+        <p class="text-[11px] text-stone-600">Local weather & AQI monitoring active.</p>
+      </div>
+      <button onclick="openBleModal()" class="px-2.5 py-1 bg-teal-700 hover:bg-teal-800 text-white rounded text-[11px] font-semibold flex items-center gap-1">Pair BLE</button>
+    </div>
+
+    <!-- App Header -->
+    <header class="px-5 pt-3 pb-2 flex items-center justify-between border-b border-stone-200/60 bg-white/70 backdrop-blur">
+      <div>
+        <div class="text-[10px] font-semibold text-stone-400 uppercase tracking-wider">Thursday, Sep 10</div>
+        <h1 class="text-xl font-bold tracking-tight text-stone-900 flex items-center gap-2">
+          <span>Aura-Weave</span>
+          <span class="text-teal-600 text-xs font-normal px-2 py-0.5 rounded-full bg-teal-50 border border-teal-200">Companion</span>
+        </h1>
+      </div>
+      <button onclick="switchTab('settings')" class="w-8 h-8 rounded-full bg-teal-50 hover:bg-teal-100 text-teal-800 flex items-center justify-center border border-teal-200/80 transition cursor-pointer" aria-label="User Profile">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-teal-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </button>
+    </header>
+
+    <!-- COMPANION MODE TOGGLE (Solo / Daily vs Disaster Mode) -->
+    <div class="px-4 pt-3 pb-1">
+      <div class="bg-stone-200/80 p-1 rounded-2xl flex items-center text-xs font-semibold shadow-inner">
+        <button
+          onclick="setCompanionMode('daily')"
+          id="app-mode-daily"
+          class="flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-200 bg-white text-stone-900 shadow-xs"
+        >
+          <span class="text-teal-600">❤️</span>
+          <span>Solo / Daily Use</span>
+        </button>
+        <button
+          onclick="setCompanionMode('disaster')"
+          id="app-mode-disaster"
+          class="flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-200 text-stone-500 hover:text-stone-800"
+        >
+          <span class="text-amber-500">🚨</span>
+          <span>Disaster Mode</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- MAIN SCROLLABLE CONTENT -->
+    <main class="flex-1 overflow-y-auto p-4 space-y-4">
+
+      <!-- ============================================== -->
+      <!-- DISASTER MODE VIEW (Shown when Disaster Mode is active) -->
+      <!-- ============================================== -->
+      <div id="disaster-mode-view" class="hidden space-y-4">
+        
+        <!-- Disaster Banner -->
+        <div class="bg-gradient-to-r from-red-600 via-rose-700 to-amber-700 text-white p-3.5 rounded-3xl shadow-lg border border-red-400/50 flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center font-black text-amber-300 text-base">
+              🚨
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5 font-black uppercase text-[11px] tracking-wider text-amber-200">
+                <span>Disaster Mode Active</span>
+                <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+              </div>
+              <p class="text-white text-[11px] font-medium leading-tight">
+                Prioritizing critical life-safety vitals & hazard evacuation
+              </p>
+            </div>
+          </div>
+          <button onclick="setCompanionMode('daily')" class="px-2.5 py-1 rounded-xl bg-white/20 hover:bg-white/30 text-white font-semibold text-[11px] transition border border-white/30 shrink-0">
+            Daily Mode
+          </button>
+        </div>
+
+        <!-- EXTRA-LARGE PRIMARY STATUS CARD -->
+        <div id="disaster-status-card" class="p-5 sm:p-6 rounded-3xl border-2 shadow-xl transition-all duration-300 bg-emerald-950 text-white border-emerald-500">
+          <div class="flex items-center justify-between gap-3 mb-2">
+            <span id="disaster-badge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-500 text-stone-950">
+              ✓ Field Vitals Stable
+            </span>
+            <span id="disaster-battery-text" class="text-[11px] font-mono text-stone-300">
+              Vest: 84% Batt
+            </span>
+          </div>
+
+          <h2 id="disaster-status-title" class="text-2xl sm:text-3xl font-black tracking-tight leading-tight pt-1">
+            CONTINUE MISSION PACING
+          </h2>
+          
+          <p id="disaster-status-sub" class="text-stone-300 text-xs sm:text-sm leading-relaxed mt-2">
+            Core temperature and respiration are within tolerable operational limits. Monitor hydration as environmental heat peaks.
+          </p>
+        </div>
+
+        <!-- EXTRA-LARGE HIGH-VISIBILITY CURRENT VITALS -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          
+          <!-- Core Temp - GIANT -->
+          <div id="disaster-temp-card" class="p-5 rounded-3xl border-2 shadow-md bg-emerald-50 border-emerald-500">
+            <div class="flex items-center justify-between text-xs font-bold uppercase tracking-wider mb-1">
+              <span class="flex items-center gap-1.5 text-stone-700">
+                🌡️ Core Body Temperature
+              </span>
+              <span id="disaster-temp-zone" class="px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-600 text-white">
+                SAFE (&lt;99.5°)
+              </span>
+            </div>
+            <div id="disaster-val-temp" class="text-4xl sm:text-5xl font-black text-stone-900 tracking-tight my-1">
+              98.6°F
+            </div>
+            <p id="disaster-temp-desc" class="text-xs font-semibold text-stone-700">
+              ✓ Normal thermoregulation. Heat dissipation active.
+            </p>
+          </div>
+
+          <!-- Respiration - GIANT -->
+          <div id="disaster-breath-card" class="p-5 rounded-3xl border-2 shadow-md bg-teal-50 border-teal-500">
+            <div class="flex items-center justify-between text-xs font-bold uppercase tracking-wider mb-1">
+              <span class="flex items-center gap-1.5 text-stone-700">
+                💨 Breathing Rhythm
+              </span>
+              <span id="disaster-breath-zone" class="px-2 py-0.5 rounded-md text-[10px] font-black bg-teal-600 text-white">
+                RESTING CORRIDOR
+              </span>
+            </div>
+            <div class="flex items-baseline gap-2 my-1">
+              <span id="disaster-val-breath" class="text-4xl sm:text-5xl font-black text-stone-900 tracking-tight">
+                15.2
+              </span>
+              <span class="text-sm font-bold text-stone-500">breaths/min</span>
+            </div>
+            <p id="disaster-breath-desc" class="text-xs font-semibold text-stone-700">
+              Smooth diaphragmatic pacing. Normal lung ventilation.
+            </p>
+          </div>
+
+          <!-- Heart Pulse - LARGE -->
+          <div class="p-4 rounded-3xl bg-white border-2 border-stone-300 shadow-sm">
+            <div class="flex items-center justify-between text-xs font-bold uppercase text-stone-600 mb-1">
+              <span class="flex items-center gap-1.5">
+                ❤️ Heart Pulse
+              </span>
+              <span id="disaster-pulse-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-stone-100 text-stone-700">
+                MODERATE PULSE
+              </span>
+            </div>
+            <div class="text-3xl font-black text-stone-900 my-0.5">
+              <span id="disaster-val-heart">72</span> <span class="text-sm font-normal text-stone-500">bpm</span>
+            </div>
+            <p class="text-[11px] text-stone-600">Continuous optical bio-signal telemetry.</p>
+          </div>
+
+          <!-- Inertial State - LARGE -->
+          <div class="p-4 rounded-3xl bg-white border-2 border-stone-300 shadow-sm">
+            <div class="flex items-center justify-between text-xs font-bold uppercase text-stone-600 mb-1">
+              <span class="flex items-center gap-1.5">
+                🏃 Inertial State
+              </span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                IMU Sensor Active
+              </span>
+            </div>
+            <div id="disaster-val-motion" class="text-2xl font-black text-stone-900 my-0.5 truncate">
+              Gentle Walk
+            </div>
+            <p class="text-[11px] text-stone-600">Continuous movement detected. No fall recorded.</p>
+          </div>
+
+          <!-- Blood Oxygen SpO2 - LARGE -->
+          <div class="p-4 rounded-3xl bg-white border-2 border-stone-300 shadow-sm">
+            <div class="flex items-center justify-between text-xs font-bold uppercase text-stone-600 mb-1">
+              <span class="flex items-center gap-1.5 text-cyan-700">
+                💧 Blood Oxygen (SpO2)
+              </span>
+              <span id="disaster-spo2-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                SATURATION OK
+              </span>
+            </div>
+            <div class="text-3xl font-black text-stone-900 my-0.5">
+              <span id="disaster-val-spo2">98</span>% <span class="text-sm font-normal text-stone-500">SpO2</span>
+            </div>
+            <p id="disaster-spo2-desc" class="text-[11px] text-stone-600">Normal arterial blood saturation.</p>
+          </div>
+
+          <!-- Blood Pressure - LARGE -->
+          <div class="p-4 rounded-3xl bg-white border-2 border-stone-300 shadow-sm">
+            <div class="flex items-center justify-between text-xs font-bold uppercase text-stone-600 mb-1">
+              <span class="flex items-center gap-1.5 text-rose-700">
+                🩺 Blood Pressure
+              </span>
+              <span id="disaster-bp-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                TARGET RANGE
+              </span>
+            </div>
+            <div class="text-3xl font-black text-stone-900 my-0.5">
+              <span id="disaster-val-bp">118/76</span> <span class="text-sm font-normal text-stone-500">mmHg</span>
+            </div>
+            <p id="disaster-bp-desc" class="text-[11px] text-stone-600">Continuous arterial vascular estimation.</p>
+          </div>
+        </div>
+
+        <!-- EMERGENCY ACTION TOOLBAR -->
+        <div class="bg-stone-900 text-stone-100 p-5 rounded-3xl shadow-lg border border-stone-800 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+              ⚡ Immediate Life-Safety Commands
+            </span>
+            <span class="text-[10px] text-stone-400 font-mono">1-Tap Actions</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <!-- Distress Broadcast Button -->
+            <button
+              onclick="toggleSosBeacon()"
+              id="disaster-beacon-btn"
+              class="py-3 px-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-md bg-rose-700 hover:bg-rose-600 text-white transition cursor-pointer"
+            >
+              <span>🚨</span>
+              <span id="disaster-beacon-text">TRIGGER FIELD SOS DISTRESS</span>
+            </button>
+
+            <!-- Emergency Contact -->
+            <button
+              onclick="initiateEmergencyCallNow()"
+              class="py-3 px-4 rounded-2xl bg-amber-600 hover:bg-amber-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
+            >
+              <span>📞</span>
+              <span>CALL DAVID LIN (+1 555-234-8921)</span>
+            </button>
+          </div>
+
+          <div id="disaster-sos-notice" class="hidden p-3 rounded-2xl bg-rose-950 border border-rose-600 text-rose-200 text-xs flex items-center justify-between animate-beacon">
+            <span>Field Emergency Alert: Distress broadcast transmitting to local emergency responder network.</span>
+            <button onclick="toggleSosBeacon()" class="px-2 py-0.5 bg-rose-700 text-white rounded font-bold text-[10px]">Silence</button>
+          </div>
+
+          <div class="pt-2 border-t border-stone-800 flex items-center justify-between text-xs text-stone-400">
+            <span>📍 Sector: <strong>Oak Ridge Trail (East Ravine)</strong></span>
+            <span class="font-mono text-[11px] text-stone-300">37.7749° N, 122.4194° W</span>
+          </div>
+        </div>
+
+        <!-- IMMEDIATE ENVIRONMENTAL THREATS -->
+        <div class="bg-white p-4 rounded-3xl border-2 border-amber-300 shadow-sm space-y-3">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-black uppercase tracking-wider text-amber-900">
+              ☀️ Active Environmental Hazards In Sector
+            </span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold">
+              Heat Index: 98°F
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="p-3 rounded-2xl bg-stone-50 border border-stone-200">
+              <span class="text-stone-500 text-[10px] uppercase font-bold">Heat Index</span>
+              <div id="disaster-env-heat" class="text-xl font-black text-rose-600 mt-0.5">98°F</div>
+              <p class="text-[10px] text-stone-600 mt-0.5">High radiant sun exposure</p>
+            </div>
+
+            <div class="p-3 rounded-2xl bg-stone-50 border border-stone-200">
+              <span class="text-stone-500 text-[10px] uppercase font-bold">Air Quality</span>
+              <div id="disaster-env-aqi" class="text-xl font-black text-amber-600 mt-0.5">78 AQI</div>
+              <p class="text-[10px] text-stone-600 mt-0.5">PM2.5 particulate caution</p>
+            </div>
+          </div>
+
+          <div class="p-3 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 text-xs flex items-start gap-2">
+            <span class="text-base">🌊</span>
+            <div>
+              <span class="font-black uppercase text-[10px] tracking-wider text-blue-800">Flash Flood Alert Active</span>
+              <p class="text-[11px] text-blue-950 mt-0.5 leading-snug">
+                Avoid low-lying creek crossings immediately. Move to higher ridge trail.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- IMMEDIATE HEAT CRISIS FIRST AID CHECKLIST -->
+        <div class="bg-stone-50 p-4 rounded-3xl border border-stone-200 space-y-2.5">
+          <span class="text-xs font-black uppercase tracking-wider text-stone-800">
+            Immediate Heat Exhaustion First Aid Protocol
+          </span>
+          <div class="space-y-1.5 text-xs text-stone-700">
+            <div class="flex items-start gap-2 p-2 bg-white rounded-xl border border-stone-200">
+              <span class="w-5 h-5 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center font-bold text-xs shrink-0">1</span>
+              <span>Unbuckle heavy equipment / vest straps to allow chest convection.</span>
+            </div>
+            <div class="flex items-start gap-2 p-2 bg-white rounded-xl border border-stone-200">
+              <span class="w-5 h-5 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center font-bold text-xs shrink-0">2</span>
+              <span>Apply cold water or wet bandana to carotid arteries (neck) and underarms.</span>
+            </div>
+            <div class="flex items-start gap-2 p-2 bg-white rounded-xl border border-stone-200">
+              <span class="w-5 h-5 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center font-bold text-xs shrink-0">3</span>
+              <span>Sip electrolyte water in small 2-3oz amounts every 5 minutes.</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ============================================== -->
+      <!-- TAB 1: HOME (SOLO / DAILY USE) -->
+      <!-- ============================================== -->
+      <div id="tab-home" class="space-y-4">
+        <!-- Status Card -->
+        <div id="main-status-card" class="p-5 rounded-3xl border shadow-sm transition-all duration-500 bg-emerald-50/80 border-emerald-200/80">
+          <div class="flex items-start justify-between gap-3">
+            <div class="space-y-1">
+              <span id="status-badge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                ● Optimal Balance
+              </span>
+              <h2 id="status-title" class="text-2xl font-bold text-stone-900 tracking-tight leading-snug pt-1">
+                You're doing fine
+              </h2>
+              <p id="status-sub" class="text-stone-700 text-xs leading-relaxed">
+                Your breathing rhythm and core temperature are calm and balanced.
+              </p>
+            </div>
+            <div class="relative flex items-center justify-center w-12 h-12 shrink-0">
+              <div id="aura-ping-circle" class="absolute inset-0 rounded-full bg-emerald-500 opacity-40 animate-aura"></div>
+              <div id="aura-core-circle" class="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white shadow-md font-bold text-base">
+                ✓
+              </div>
+            </div>
+          </div>
+          
+          <div id="status-action-row" class="mt-3 pt-2.5 border-t border-emerald-200/50 flex items-center justify-between text-xs text-stone-600">
+            <span class="flex items-center gap-1 text-[11px]">✨ Smart textile passive monitoring active</span>
+            <span id="sync-timestamp" class="text-[10px] text-stone-400 font-mono">Sync: Just now</span>
+          </div>
+        </div>
+
+        <!-- 4 Live Vitals -->
+        <div class="grid grid-cols-2 gap-3">
+          <!-- Breathing -->
+          <div class="bg-white p-3.5 rounded-3xl border border-stone-200/80 shadow-2xs">
+            <div class="flex items-center justify-between text-xs text-stone-500 mb-1">
+              <span class="font-medium text-stone-600">💨 Breathing</span>
+              <span id="breath-dot" class="w-2 h-2 rounded-full bg-teal-500"></span>
+            </div>
+            <div class="flex items-baseline gap-1">
+              <span id="val-breathing" class="text-2xl font-bold text-stone-900">15.2</span>
+              <span class="text-[11px] text-stone-500 font-medium">bpm</span>
+            </div>
+            <div class="mt-1 flex items-center justify-between text-[10px] text-stone-500">
+              <span id="desc-breathing">Relaxed pace</span>
+              <span class="text-stone-400">12-20 norm</span>
+            </div>
+            <div class="mt-2 w-full bg-stone-100 rounded-full h-1.5 overflow-hidden">
+              <div id="bar-breathing" class="h-full bg-teal-500 rounded-full transition-all duration-700 w-2/5"></div>
+            </div>
+          </div>
+
+          <!-- Body Temp -->
+          <div class="bg-white p-3.5 rounded-3xl border border-stone-200/80 shadow-2xs">
+            <div class="flex items-center justify-between text-xs text-stone-500 mb-1">
+              <span class="font-medium text-stone-600">🌡️ Body Temp</span>
+              <span id="temp-dot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            </div>
+            <div class="flex items-baseline gap-1">
+              <span id="val-temp" class="text-2xl font-bold text-stone-900">98.6°F</span>
+            </div>
+            <div class="mt-1 flex items-center justify-between text-[10px] text-stone-500">
+              <span id="desc-temp">Comfortable</span>
+              <span class="text-stone-400">&lt;99.5° safe</span>
+            </div>
+            <div class="mt-2 w-full bg-stone-100 rounded-full h-1.5 overflow-hidden">
+              <div id="bar-temp" class="h-full bg-emerald-500 rounded-full transition-all duration-700 w-1/3"></div>
+            </div>
+          </div>
+
+          <!-- Heart Rhythm -->
+          <div class="bg-white p-3.5 rounded-3xl border border-stone-200/80 shadow-2xs">
+            <div class="flex items-center justify-between text-xs text-stone-500 mb-1">
+              <span class="font-medium text-stone-600">❤️ Heart Rhythm</span>
+              <span class="text-[10px] text-stone-400">Optical</span>
+            </div>
+            <div class="flex items-baseline gap-1">
+              <span id="val-heart" class="text-2xl font-bold text-stone-900">72</span>
+              <span class="text-[11px] text-stone-500 font-medium">bpm</span>
+            </div>
+            <div class="mt-1 flex items-center justify-between text-[10px] text-stone-500">
+              <span id="desc-heart">Resting easy</span>
+              <span class="text-stone-400">72 avg</span>
+            </div>
+            <div class="mt-2 w-full bg-stone-100 rounded-full h-1.5 overflow-hidden">
+              <div id="bar-heart" class="h-full bg-rose-500 rounded-full transition-all duration-700 w-2/5"></div>
+            </div>
+          </div>
+
+          <!-- Motion Pace -->
+          <div class="bg-white p-3.5 rounded-3xl border border-stone-200/80 shadow-2xs">
+            <div class="flex items-center justify-between text-xs text-stone-500 mb-1">
+              <span class="font-medium text-stone-600">🏃 Motion Pace</span>
+              <span class="text-[10px] text-stone-400">IMU</span>
+            </div>
+            <div class="flex items-baseline gap-1">
+              <span id="val-motion" class="text-lg font-bold text-stone-900 truncate">Gentle Walk</span>
+            </div>
+            <div class="mt-1 flex items-center justify-between text-[10px] text-stone-500">
+              <span>4,820 steps</span>
+              <span class="text-stone-700 font-medium">45m active</span>
+            </div>
+            <div class="mt-2 w-full bg-stone-100 rounded-full h-1.5 overflow-hidden">
+              <div class="h-full bg-blue-500 rounded-full w-3/5"></div>
+            </div>
+          </div>
+
+          <!-- Blood Oxygen (SpO2) -->
+          <div class="bg-white p-3.5 rounded-3xl border border-stone-200/80 shadow-2xs">
+            <div class="flex items-center justify-between text-xs text-stone-500 mb-1">
+              <span class="font-medium text-cyan-700">💧 Blood Oxygen</span>
+              <span id="spo2-dot" class="w-2 h-2 rounded-full bg-teal-500"></span>
+            </div>
+            <div class="flex items-baseline gap-1">
+              <span id="val-spo2" class="text-2xl font-bold text-stone-900">98</span>
+              <span class="text-[11px] text-stone-500 font-medium">% SpO2</span>
+            </div>
+            <div class="mt-1 flex items-center justify-between text-[10px] text-stone-500">
+              <span id="desc-spo2">Optimal saturation</span>
+              <span class="text-stone-400">95-100%</span>
+            </div>
+            <div class="mt-2 w-full bg-stone-100 rounded-full h-1.5 overflow-hidden">
+              <div id="bar-spo2" class="h-full bg-teal-500 rounded-full transition-all duration-700 w-full"></div>
+            </div>
+          </div>
+
+          <!-- Blood Pressure -->
+          <div class="bg-white p-3.5 rounded-3xl border border-stone-200/80 shadow-2xs">
+            <div class="flex items-center justify-between text-xs text-stone-500 mb-1">
+              <span class="font-medium text-rose-700">🩺 Blood Pressure</span>
+              <span id="bp-dot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            </div>
+            <div class="flex items-baseline gap-1">
+              <span id="val-bp" class="text-2xl font-bold text-stone-900">118/76</span>
+              <span class="text-[11px] text-stone-500 font-medium">mmHg</span>
+            </div>
+            <div class="mt-1 flex items-center justify-between text-[10px] text-stone-500">
+              <span id="desc-bp">Normal range</span>
+              <span class="text-stone-400">&lt;120/80</span>
+            </div>
+            <div class="mt-2 w-full bg-stone-100 rounded-full h-1.5 overflow-hidden">
+              <div id="bar-bp" class="h-full bg-emerald-500 rounded-full transition-all duration-700 w-2/5"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Environmental Risk Pill -->
+        <div onclick="switchTab('environment')" class="bg-stone-900 text-stone-100 p-3.5 rounded-3xl shadow-sm flex items-center justify-between cursor-pointer hover:bg-stone-800 transition">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-lg">☀️</div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Area Condition</span>
+                <span class="text-[9px] px-1.5 py-0.2 rounded bg-stone-800 text-stone-300">Oak Ridge Trail</span>
+              </div>
+              <p class="text-xs font-medium text-stone-200 mt-0.5">
+                Heat Index: <strong id="env-heat-text" class="text-white">98°F</strong> — Moderate heat today
+              </p>
+            </div>
+          </div>
+          <span class="text-stone-400 text-sm">➔</span>
+        </div>
+
+        <!-- Hydration & Shade Timer -->
+        <div class="bg-white p-4 rounded-3xl border border-stone-200/80 shadow-2xs space-y-2.5">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-bold text-stone-900 uppercase">Daily Hydration</span>
+            <span id="water-text" class="text-stone-500 font-medium">1,250 / 2,500 ml</span>
+          </div>
+          <div class="w-full bg-stone-100 rounded-full h-2 overflow-hidden">
+            <div id="water-bar" class="h-full bg-gradient-to-r from-teal-500 to-blue-500 rounded-full transition-all duration-300 w-1/2"></div>
+          </div>
+          <div class="flex items-center gap-2 pt-1">
+            <button onclick="addWater()" class="flex-1 py-1.5 px-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 text-xs font-semibold border border-teal-200">
+              + 250 ml Water
+            </button>
+            <button onclick="toggleTimer()" id="btn-timer" class="flex-1 py-1.5 px-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold border border-stone-200">
+              ⏳ 10m Shade Rest
+            </button>
+          </div>
+        </div>
+
+        <!-- Early Warning Insight Sneak Peek -->
+        <div onclick="switchTab('insights')" class="bg-gradient-to-br from-teal-50 to-stone-50 p-4 rounded-3xl border border-teal-200/80 shadow-2xs cursor-pointer hover:border-teal-300 transition">
+          <div class="flex items-center justify-between text-xs font-bold text-teal-900 uppercase tracking-wider mb-1">
+            <span>✨ Early Warning Insight</span>
+            <span class="text-teal-700">Read ➔</span>
+          </div>
+          <p id="sneak-insight" class="text-xs text-stone-700 leading-relaxed">
+            Your breathing rhythm is steady. Core body heat is dissipating effectively in current 91°F ambient warmth.
+          </p>
+        </div>
+      </div>
+
+      <!-- TAB 2: TRENDS -->
+      <div id="tab-trends" class="hidden space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-base font-bold text-stone-900">Trends & Rhythm</h2>
+            <p class="text-xs text-stone-500">24-hour vitals and weekly stability</p>
+          </div>
+          <div class="flex items-center gap-1 bg-stone-200 p-1 rounded-xl text-xs">
+            <button onclick="toggleTrendView('today')" id="btn-trend-today" class="px-2.5 py-0.5 rounded-lg font-semibold bg-white text-stone-900 shadow-2xs">Today</button>
+            <button onclick="toggleTrendView('week')" id="btn-trend-week" class="px-2.5 py-0.5 rounded-lg font-semibold text-stone-600">7 Days</button>
+          </div>
+        </div>
+
+        <!-- 24-hr Temperature Curve (SVG Chart) -->
+        <div id="view-trend-today" class="space-y-4">
+          <div class="bg-white p-4 rounded-3xl border border-stone-200 shadow-2xs space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-stone-900 uppercase">Core Temperature Curve (°F)</span>
+              <span class="text-stone-500">Caution zone &gt;99.5°</span>
+            </div>
+            
+            <svg class="w-full h-36" viewBox="0 0 320 120">
+              <!-- Caution reference zone -->
+              <rect x="0" y="20" width="320" height="30" fill="#FEF3C7" opacity="0.6"/>
+              <line x1="0" y1="50" x2="320" y2="50" stroke="#F59E0B" stroke-dasharray="4,4" stroke-width="1"/>
+              <text x="5" y="46" font-size="8" fill="#D97706" font-weight="bold">Caution Threshold 99.5°F</text>
+
+              <!-- Critical line -->
+              <line x1="0" y1="20" x2="320" y2="20" stroke="#EF4444" stroke-dasharray="4,4" stroke-width="1"/>
+              <text x="5" y="17" font-size="8" fill="#DC2626" font-weight="bold">Critical Threshold 101.0°F</text>
+
+              <!-- Dynamic temp path -->
+              <path id="svg-temp-path" d="M 10 90 Q 60 88, 110 82 T 210 70 T 310 65" fill="none" stroke="#F59E0B" stroke-width="3"/>
+              
+              <!-- Points -->
+              <circle cx="10" cy="90" r="3" fill="#F59E0B"/>
+              <circle cx="110" cy="82" r="3" fill="#F59E0B"/>
+              <circle cx="210" cy="70" r="3" fill="#F59E0B"/>
+              <circle id="svg-temp-now-dot" cx="310" cy="65" r="4" fill="#D97706"/>
+
+              <!-- Axis labels -->
+              <text x="10" y="115" font-size="8" fill="#9CA3AF">6 AM</text>
+              <text x="100" y="115" font-size="8" fill="#9CA3AF">10 AM</text>
+              <text x="200" y="115" font-size="8" fill="#9CA3AF">2 PM</text>
+              <text x="290" y="115" font-size="8" fill="#9CA3AF">Now</text>
+            </svg>
+            <p class="text-[10px] text-stone-400 text-center">Smart vest passive sensors record gradual thermal accumulation.</p>
+          </div>
+
+          <!-- Breathing Rhythm Curve -->
+          <div class="bg-white p-4 rounded-3xl border border-stone-200 shadow-2xs space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-stone-900 uppercase">Breathing Rhythm (bpm)</span>
+              <span class="text-stone-500">Safe: 12-20 bpm</span>
+            </div>
+            
+            <svg class="w-full h-32" viewBox="0 0 320 100">
+              <line x1="0" y1="40" x2="320" y2="40" stroke="#10B981" stroke-dasharray="3,3" stroke-width="1"/>
+              <text x="5" y="36" font-size="8" fill="#059669">Resting Baseline (18 bpm)</text>
+              <path id="svg-breath-path" d="M 10 75 Q 80 70, 150 68 T 240 60 T 310 58" fill="none" stroke="#0D9488" stroke-width="2.5"/>
+              <circle cx="310" cy="58" r="3.5" fill="#0D9488"/>
+              <text x="10" y="95" font-size="8" fill="#9CA3AF">6 AM</text>
+              <text x="150" y="95" font-size="8" fill="#9CA3AF">12 PM</text>
+              <text x="290" y="95" font-size="8" fill="#9CA3AF">Now</text>
+            </svg>
+          </div>
+
+          <!-- Blood Oxygen SpO2 Trend -->
+          <div class="bg-white p-4 rounded-3xl border border-stone-200 shadow-2xs space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-stone-900 uppercase">Blood Oxygen Saturation (% SpO2)</span>
+              <span class="text-stone-500">Normal: ≥95%</span>
+            </div>
+            
+            <svg class="w-full h-32" viewBox="0 0 320 100">
+              <!-- Reference lines -->
+              <line x1="0" y1="30" x2="320" y2="30" stroke="#10B981" stroke-dasharray="3,3" stroke-width="1"/>
+              <text x="5" y="26" font-size="8" fill="#059669">Normal Threshold (95%)</text>
+
+              <line x1="0" y1="65" x2="320" y2="65" stroke="#EF4444" stroke-dasharray="3,3" stroke-width="1"/>
+              <text x="5" y="61" font-size="8" fill="#DC2626">Hypoxia Alert (&lt;90%)</text>
+
+              <path id="svg-spo2-path" d="M 10 32 Q 80 30, 150 34 T 240 33 T 310 32" fill="none" stroke="#0284C7" stroke-width="2.5"/>
+              <circle cx="310" cy="32" r="3.5" fill="#0284C7"/>
+              <text x="10" y="92" font-size="8" fill="#9CA3AF">6 AM</text>
+              <text x="150" y="92" font-size="8" fill="#9CA3AF">12 PM</text>
+              <text x="290" y="92" font-size="8" fill="#9CA3AF">Now</text>
+            </svg>
+            <p class="text-[10px] text-stone-400 text-center">Continuous optical pulse oximetry monitoring.</p>
+          </div>
+
+          <!-- Blood Pressure Dual Curve -->
+          <div class="bg-white p-4 rounded-3xl border border-stone-200 shadow-2xs space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-stone-900 uppercase">Blood Pressure (Systolic / Diastolic)</span>
+              <span class="text-stone-500">Target &lt;120/80</span>
+            </div>
+            
+            <svg class="w-full h-36" viewBox="0 0 320 120">
+              <!-- Thresholds -->
+              <line x1="0" y1="35" x2="320" y2="35" stroke="#F59E0B" stroke-dasharray="3,3" stroke-width="1"/>
+              <text x="5" y="31" font-size="8" fill="#D97706">Stage 1 Strain (&gt;140)</text>
+
+              <line x1="0" y1="55" x2="320" y2="55" stroke="#10B981" stroke-dasharray="3,3" stroke-width="1"/>
+              <text x="5" y="51" font-size="8" fill="#059669">Target Systolic (120)</text>
+
+              <line x1="0" y1="85" x2="320" y2="85" stroke="#10B981" stroke-dasharray="3,3" stroke-width="1"/>
+              <text x="5" y="81" font-size="8" fill="#059669">Target Diastolic (80)</text>
+
+              <!-- Systolic line -->
+              <path id="svg-sys-path" d="M 10 58 Q 80 55, 150 54 T 240 52 T 310 54" fill="none" stroke="#DC2626" stroke-width="2"/>
+              <!-- Diastolic line -->
+              <path id="svg-dia-path" d="M 10 88 Q 80 87, 150 86 T 240 85 T 310 87" fill="none" stroke="#8B5CF6" stroke-width="2"/>
+
+              <circle cx="310" cy="54" r="3" fill="#DC2626"/>
+              <circle cx="310" cy="87" r="3" fill="#8B5CF6"/>
+
+              <text x="10" y="112" font-size="8" fill="#9CA3AF">6 AM</text>
+              <text x="150" y="112" font-size="8" fill="#9CA3AF">12 PM</text>
+              <text x="290" y="112" font-size="8" fill="#9CA3AF">Now</text>
+            </svg>
+            <div class="flex items-center justify-center gap-4 text-[10px] text-stone-500">
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-600"></span> Systolic</span>
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-500"></span> Diastolic</span>
+            </div>
+          </div>
+
+          <!-- Flagged Moments Card -->
+          <div class="bg-white p-4 rounded-3xl border border-stone-200 shadow-2xs space-y-2">
+            <span class="text-xs font-bold text-stone-900 uppercase">Moments Crossing Thresholds Today</span>
+            <div id="flagged-moments-box" class="p-3 rounded-2xl bg-emerald-50 text-emerald-800 text-xs">
+              ✓ No warning thresholds were crossed today. Smooth pacing!
+            </div>
+          </div>
+        </div>
+
+        <!-- Weekly View -->
+        <div id="view-trend-week" class="hidden space-y-3">
+          <div class="bg-white p-4 rounded-3xl border border-stone-200 shadow-2xs space-y-2">
+            <span class="text-xs font-bold text-stone-900 uppercase">7-Day Peak & Average Core Temp</span>
+            <svg class="w-full h-40" viewBox="0 0 320 120">
+              <rect x="20" y="45" width="20" height="55" fill="#14B8A6" rx="4"/>
+              <text x="22" y="112" font-size="8" fill="#6B7280">Mon</text>
+              <rect x="65" y="42" width="20" height="58" fill="#14B8A6" rx="4"/>
+              <text x="68" y="112" font-size="8" fill="#6B7280">Tue</text>
+              <rect x="110" y="25" width="20" height="75" fill="#F59E0B" rx="4"/>
+              <text x="112" y="112" font-size="8" fill="#6B7280">Wed</text>
+              <rect x="155" y="48" width="20" height="52" fill="#14B8A6" rx="4"/>
+              <text x="158" y="112" font-size="8" fill="#6B7280">Thu</text>
+              <rect x="200" y="18" width="20" height="82" fill="#F59E0B" rx="4"/>
+              <text x="204" y="112" font-size="8" fill="#6B7280">Fri</text>
+              <rect x="245" y="46" width="20" height="54" fill="#14B8A6" rx="4"/>
+              <text x="248" y="112" font-size="8" fill="#6B7280">Sat</text>
+              <rect x="285" y="43" width="20" height="57" fill="#14B8A6" rx="4"/>
+              <text x="288" y="112" font-size="8" fill="#6B7280">Sun</text>
+            </svg>
+            <div class="flex items-center justify-center gap-4 text-[11px] text-stone-500">
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded bg-teal-500"></span> Balanced Days</span>
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded bg-amber-500"></span> Warning Crossings</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: INSIGHTS -->
+      <div id="tab-insights" class="hidden space-y-4">
+        <div>
+          <h2 class="text-base font-bold text-stone-900">✨ Early Warning Insights</h2>
+          <p class="text-xs text-stone-500">Continuous bio-signal predictive engine</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-white to-stone-50 p-4 rounded-3xl border border-stone-200 shadow-xs space-y-2.5">
+          <div class="flex items-center justify-between text-xs font-bold text-teal-800 uppercase">
+            <span>Predictive Core Trend</span>
+            <span class="text-[10px] text-stone-400 font-mono">Updated 2m ago</span>
+          </div>
+
+          <div id="insight-card-box" class="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-stone-800 text-xs leading-relaxed">
+            <p id="insight-title" class="font-bold text-amber-950 mb-1">🌱 Optimal Thermal Regulation</p>
+            <p id="insight-desc" class="text-stone-700">Your core temperature and breathing show steady recovery during pauses. Body is dissipating heat smoothly in current conditions.</p>
+          </div>
+
+          <div class="p-3 rounded-2xl bg-stone-100 text-stone-700 text-xs space-y-1">
+            <span class="font-bold text-stone-900">Continuous Biometric Monitoring:</span>
+            <p class="text-[11px] text-stone-600">The vest continuously tracks core temperature, breathing dynamics, blood oxygen, and blood pressure so you can pace your effort and rest proactively.</p>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-3xl border border-stone-200 shadow-2xs space-y-3">
+          <span class="text-xs font-bold text-stone-900 uppercase">Personalized Tips for Today</span>
+          
+          <div class="p-3 rounded-2xl bg-stone-50 border border-stone-200/70 text-xs space-y-1">
+            <span class="font-semibold text-stone-900">💧 Pre-Hydrate with Electrolytes</span>
+            <p class="text-stone-600 text-[11px]">Ambient humidity is 64%, slowing sweat evaporation. Include sodium/potassium in drinking water to avoid electrolyte depletion.</p>
+          </div>
+
+          <div class="p-3 rounded-2xl bg-stone-50 border border-stone-200/70 text-xs space-y-1">
+            <span class="font-semibold text-stone-900">🍃 Air Quality Caution (AQI 78)</span>
+            <p class="text-stone-600 text-[11px]">Fine particulate PM2.5 is slightly elevated along the highway. Prefer tree-covered trails for your afternoon walk.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: ENVIRONMENT -->
+      <div id="tab-environment" class="hidden space-y-4">
+        <div>
+          <h2 class="text-base font-bold text-stone-900">🧭 Environmental Awareness</h2>
+          <p class="text-xs text-stone-500">Local hazards — active with or without vest connected</p>
+        </div>
+
+        <!-- Risk Meter -->
+        <div class="bg-white p-4 rounded-3xl border border-stone-200 shadow-2xs space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-bold text-stone-900 uppercase">Composite Hazard Level</span>
+            <span class="font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[11px]">Moderate Caution</span>
+          </div>
+          <div class="grid grid-cols-4 gap-1.5 h-3">
+            <div class="bg-emerald-500 rounded-l-full"></div>
+            <div class="bg-amber-400"></div>
+            <div class="bg-orange-400 opacity-40"></div>
+            <div class="bg-rose-500 rounded-r-full opacity-20"></div>
+          </div>
+          <div class="flex justify-between text-[10px] text-stone-400">
+            <span>Safe</span>
+            <span>Moderate</span>
+            <span>High</span>
+            <span>Extreme</span>
+          </div>
+        </div>
+
+        <!-- 4 Hazard Cards -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-white p-3.5 rounded-3xl border border-stone-200 shadow-2xs">
+            <span class="text-xs text-stone-500">☀️ Heat Index</span>
+            <div class="text-2xl font-bold text-stone-900 mt-1">98°F</div>
+            <p class="text-[10px] text-stone-500 mt-0.5">Feels like 91°F + 64% RH</p>
+          </div>
+
+          <div class="bg-white p-3.5 rounded-3xl border border-stone-200 shadow-2xs">
+            <span class="text-xs text-stone-500">💨 Air Quality</span>
+            <div class="text-2xl font-bold text-stone-900 mt-1">78 <span class="text-xs font-normal text-stone-400">AQI</span></div>
+            <p class="text-[10px] text-stone-500 mt-0.5">Moderate (PM2.5)</p>
+          </div>
+
+          <div class="bg-white p-3.5 rounded-3xl border border-stone-200 shadow-2xs">
+            <span class="text-xs text-stone-500">🕶️ UV Exposure</span>
+            <div class="text-2xl font-bold text-stone-900 mt-1">7 <span class="text-xs font-normal text-stone-400">/ 11</span></div>
+            <p class="text-[10px] text-stone-500 mt-0.5">High (SPF 50 advised)</p>
+          </div>
+
+          <div class="bg-white p-3.5 rounded-3xl border border-stone-200 shadow-2xs">
+            <span class="text-xs text-stone-500">💧 Humidity</span>
+            <div class="text-2xl font-bold text-stone-900 mt-1">64%</div>
+            <p class="text-[10px] text-stone-500 mt-0.5">Dewpoint: 72°F</p>
+          </div>
+        </div>
+
+        <div class="bg-blue-50 border border-blue-200 rounded-3xl p-3.5 text-xs text-blue-900 space-y-1">
+          <span class="font-bold">🌊 Flood Watch in Effect</span>
+          <p class="text-[11px] leading-relaxed">Flash Flood Watch in effect until 6:00 PM for low-lying trail crossings. Keep smart vest charging port rubber seal closed.</p>
+        </div>
+      </div>
+
+      <!-- TAB 5: HISTORY -->
+      <div id="tab-history" class="hidden space-y-4">
+        <div>
+          <h2 class="text-base font-bold text-stone-900">📅 Past Days & Health Logs</h2>
+          <p class="text-xs text-stone-500">Review daily strain and recovery history</p>
+        </div>
+
+        <div id="history-selected-card" class="bg-white p-4 rounded-3xl border border-stone-200 shadow-xs space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-bold text-stone-900">Wednesday, Sep 9</span>
+            <span class="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">Attention Needed</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-center text-xs py-1 border-y border-stone-100">
+            <div>
+              <span class="text-[10px] text-stone-400 uppercase">Avg Temp</span>
+              <div class="font-bold text-stone-800">99.1°F</div>
+            </div>
+            <div>
+              <span class="text-[10px] text-stone-400 uppercase">Peak Temp</span>
+              <div class="font-bold text-stone-800">100.2°F</div>
+            </div>
+            <div>
+              <span class="text-[10px] text-stone-400 uppercase">Breathing</span>
+              <div class="font-bold text-stone-800">18.4 bpm</div>
+            </div>
+          </div>
+          <p class="text-xs text-stone-600">Took 20-min shade break after health threshold alert. Core cooled within 25 minutes.</p>
+        </div>
+
+        <div class="space-y-1.5">
+          <div class="p-3 bg-white rounded-2xl border border-stone-200 flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              <span class="font-bold text-stone-900">Sep 8 (Monday)</span>
+            </div>
+            <span class="text-stone-500">Peak: 98.9°F • 4h 10m motion</span>
+          </div>
+          <div class="p-3 bg-white rounded-2xl border border-stone-200 flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              <span class="font-bold text-stone-900">Sep 7 (Sunday)</span>
+            </div>
+            <span class="text-stone-500">Peak: 99.0°F • Rest day</span>
+          </div>
+          <div class="p-3 bg-white rounded-2xl border border-stone-200 flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+              <span class="font-bold text-stone-900">Sep 6 (Saturday)</span>
+            </div>
+            <span class="text-rose-600 font-semibold">Peak: 101.3°F • Heat warning</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 6: SETTINGS -->
+      <div id="tab-settings" class="hidden space-y-4">
+        <div>
+          <h2 class="text-base font-bold text-stone-900">⚙️ Profile & Preferences</h2>
+          <p class="text-xs text-stone-500">Personalized thresholds and smart vest feedback</p>
+        </div>
+
+        <div class="bg-white p-4 rounded-3xl border border-stone-200 shadow-2xs space-y-3">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center shadow-xs">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-teal-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div>
+              <h3 class="font-bold text-stone-900 text-sm">Maya Lin</h3>
+              <p class="text-xs text-stone-500">34 yrs • Field Botanist</p>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-stone-100 space-y-2">
+            <span class="text-xs font-bold text-stone-700 uppercase">Pre-Existing Conditions</span>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <label class="flex items-center gap-2 p-2 bg-stone-50 rounded-xl border border-stone-200">
+                <input type="checkbox" checked class="rounded text-teal-600">
+                <span>Heat Sensitivity</span>
+              </label>
+              <label class="flex items-center gap-2 p-2 bg-stone-50 rounded-xl border border-stone-200">
+                <input type="checkbox" class="rounded text-teal-600">
+                <span>Asthma</span>
+              </label>
+              <label class="flex items-center gap-2 p-2 bg-stone-50 rounded-xl border border-stone-200">
+                <input type="checkbox" checked class="rounded text-teal-600">
+                <span>Outdoor Worker</span>
+              </label>
+              <label class="flex items-center gap-2 p-2 bg-stone-50 rounded-xl border border-stone-200">
+                <input type="checkbox" class="rounded text-teal-600">
+                <span>Cardiovascular</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-3xl border border-stone-200 shadow-2xs space-y-3">
+          <span class="text-xs font-bold text-stone-700 uppercase">Alert Preferences</span>
+          <div class="flex items-center justify-between text-xs">
+            <div>
+              <span class="font-semibold text-stone-800">Alert Sensitivity</span>
+              <p class="text-[10px] text-stone-500">Balanced (recommended for outdoor work)</p>
+            </div>
+            <span class="px-2 py-1 bg-stone-100 rounded text-stone-700 font-semibold text-[11px]">Balanced</span>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-3xl border border-stone-200 shadow-2xs space-y-2 text-xs">
+          <span class="font-bold text-stone-700 uppercase">Designated Emergency Contact</span>
+          <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200 flex justify-between">
+            <span class="text-stone-500">David Lin (Brother)</span>
+            <span class="font-semibold text-stone-800">+1 (555) 234-8921</span>
+          </div>
+        </div>
+
+        <!-- Smart Vest BLE Telemetry Card -->
+        <div class="bg-white p-4 rounded-3xl border border-stone-200 shadow-2xs space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-stone-700 uppercase flex items-center gap-1.5">
+              <span>⚡</span> Smart Vest BLE Telemetry
+            </span>
+            <span id="settings-ble-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-600">
+              Simulated Data
+            </span>
+          </div>
+
+          <div class="p-3 rounded-2xl bg-stone-50 border border-stone-200 space-y-2 text-xs">
+            <div class="flex justify-between">
+              <span class="text-stone-500">Device Status:</span>
+              <strong id="settings-ble-name" class="text-stone-800">Connected (Simulated Stream)</strong>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-stone-500">Vest Battery:</span>
+              <strong id="settings-ble-bat" class="text-stone-800">84%</strong>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-stone-500">Active GATT Feeds:</span>
+              <span class="text-stone-700 font-mono text-[11px]">0x2A37 (HR), 0x2A1C (Temp), 0xA001</span>
+            </div>
+          </div>
+
+          <div>
+            <button onclick="openBleModal()" class="w-full py-2.5 px-3 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs transition flex items-center justify-center gap-1 cursor-pointer">
+              <span>⚡</span> Bluetooth Manager
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- BOTTOM TAB NAVIGATION (SOLO/DAILY) -->
+    <nav id="daily-nav" class="bg-white/95 backdrop-blur border-t border-stone-200/80 px-2 py-2 flex items-center justify-around select-none">
+      <button onclick="switchTab('home')" id="tab-btn-home" class="flex flex-col items-center gap-0.5 text-teal-700 font-bold">
+        <span class="text-lg">🛡️</span>
+        <span class="text-[10px]">Today</span>
+      </button>
+      <button onclick="switchTab('trends')" id="tab-btn-trends" class="flex flex-col items-center gap-0.5 text-stone-400 hover:text-stone-600 font-medium">
+        <span class="text-lg">📈</span>
+        <span class="text-[10px]">Trends</span>
+      </button>
+      <button onclick="switchTab('insights')" id="tab-btn-insights" class="flex flex-col items-center gap-0.5 text-stone-400 hover:text-stone-600 font-medium">
+        <span class="text-lg">✨</span>
+        <span class="text-[10px]">Insights</span>
+      </button>
+      <button onclick="switchTab('environment')" id="tab-btn-environment" class="flex flex-col items-center gap-0.5 text-stone-400 hover:text-stone-600 font-medium">
+        <span class="text-lg">🧭</span>
+        <span class="text-[10px]">Area</span>
+      </button>
+      <button onclick="switchTab('history')" id="tab-btn-history" class="flex flex-col items-center gap-0.5 text-stone-400 hover:text-stone-600 font-medium">
+        <span class="text-lg">📅</span>
+        <span class="text-[10px]">History</span>
+      </button>
+      <button onclick="switchTab('settings')" id="tab-btn-settings" class="flex flex-col items-center gap-0.5 text-stone-400 hover:text-stone-600 font-medium">
+        <span class="text-lg">⚙️</span>
+        <span class="text-[10px]">Profile</span>
+      </button>
+    </nav>
+
+    <!-- BOTTOM TAB NAVIGATION (DISASTER MODE: Trends and History hidden!) -->
+    <nav id="disaster-nav" class="hidden bg-stone-900 text-stone-100 border-t border-stone-800 px-4 py-2.5 flex items-center justify-around select-none">
+      <button onclick="switchTab('home')" id="disaster-btn-home" class="flex flex-col items-center gap-0.5 text-amber-400 font-bold">
+        <span class="text-lg">🚨</span>
+        <span class="text-[10px] uppercase font-bold tracking-wider">Critical Status</span>
+      </button>
+      <button onclick="switchTab('environment')" id="disaster-btn-environment" class="flex flex-col items-center gap-0.5 text-stone-400 hover:text-stone-200 font-medium">
+        <span class="text-lg">🧭</span>
+        <span class="text-[10px] uppercase font-bold tracking-wider">Area Hazards</span>
+      </button>
+      <button onclick="switchTab('settings')" id="disaster-btn-settings" class="flex flex-col items-center gap-0.5 text-stone-400 hover:text-stone-200 font-medium">
+        <span class="text-lg">🆘</span>
+        <span class="text-[10px] uppercase font-bold tracking-wider">SOS & Contacts</span>
+      </button>
+  </div>
+
+  <!-- WEB BLUETOOTH MODAL -->
+  <div id="ble-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 bg-stone-900/70 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl shadow-2xl border border-stone-200 w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+      <!-- Header -->
+      <div class="px-5 py-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/80">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-lg">⚡</div>
+          <div>
+            <h3 class="font-bold text-stone-900 text-base flex items-center gap-2">
+              <span>Bluetooth Vest Manager</span>
+              <span id="ble-modal-badge" class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-stone-200 text-stone-700">Disconnected</span>
+            </h3>
+            <p class="text-[11px] text-stone-500">Web Bluetooth API (GATT telemetry)</p>
+          </div>
+        </div>
+        <button onclick="closeBleModal()" class="w-8 h-8 rounded-full bg-stone-200/70 hover:bg-stone-300 text-stone-600 flex items-center justify-center transition cursor-pointer">✕</button>
+      </div>
+
+      <!-- Sub Tabs -->
+      <div class="px-5 pt-3 pb-2 flex border-b border-stone-100 bg-stone-50/50 gap-1 text-xs">
+        <button onclick="setBleModalTab('device')" id="ble-tab-device-btn" class="flex-1 py-1.5 rounded-xl font-semibold bg-white text-stone-900 shadow-2xs border border-stone-200/60 cursor-pointer">
+          Device & Pairing
+        </button>
+        <button onclick="setBleModalTab('inspector')" id="ble-tab-inspector-btn" class="flex-1 py-1.5 rounded-xl font-semibold text-stone-500 hover:text-stone-800 cursor-pointer">
+          Raw Packets (<span id="ble-log-count">0</span>)
+        </button>
+      </div>
+
+      <!-- Content -->
+      <div class="p-5 overflow-y-auto space-y-4 text-xs">
+        <!-- Tab 1: Device -->
+        <div id="ble-tab-device" class="space-y-4">
+          <div id="ble-browser-banner" class="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900">
+            <strong class="block text-[11px] font-semibold">Web Bluetooth API Available</strong>
+            <p class="text-[11px] text-emerald-800">Direct GATT Bluetooth connections to Aura-Weave hardware and BLE heart/temp sensors are supported in this browser.</p>
+          </div>
+
+          <div class="p-4 rounded-2xl bg-stone-50 border border-stone-200 space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span id="ble-connected-dot" class="w-3 h-3 rounded-full bg-stone-300"></span>
+                <span id="ble-active-device-name" class="font-bold text-stone-800">No BLE Device Connected</span>
+              </div>
+              <span id="ble-active-device-id" class="font-mono text-[10px] text-stone-400"></span>
+            </div>
+
+            <div id="ble-device-unpaired-box" class="space-y-3">
+              <p class="text-stone-600 text-[11px]">Scan and pair nearby Aura-Weave Smart Vests or standard Bluetooth SIG Heart Rate and Health Thermometer peripherals.</p>
+              
+              <div class="flex items-center gap-2 text-[11px] text-stone-600 bg-white p-2 rounded-xl border border-stone-200">
+                <input type="checkbox" id="ble-accept-all" checked class="rounded text-teal-600">
+                <label for="ble-accept-all" class="cursor-pointer select-none">Show all nearby BLE devices (ESP32 / Nordic / Dev boards)</label>
+              </div>
+
+              <button onclick="connectBluetooth()" id="ble-connect-btn" class="w-full py-2.5 px-4 rounded-xl font-bold bg-teal-700 hover:bg-teal-800 text-white flex items-center justify-center gap-2 transition cursor-pointer">
+                <span>⚡ Pair Aura-Weave Vest via Web Bluetooth</span>
+              </button>
+              <button onclick="connectVirtualBle()" class="w-full py-2 px-3 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200/80 transition cursor-pointer">
+                <span>✨ Simulate BLE Vest Connection (Demo / No Hardware)</span>
+              </button>
+            </div>
+
+            <div id="ble-device-paired-box" class="hidden space-y-3 pt-2 border-t border-stone-200">
+              <div class="grid grid-cols-2 gap-2 text-[11px]">
+                <div class="p-2 rounded-xl bg-white border border-stone-200">
+                  <span class="text-stone-500 block">Battery Level</span>
+                  <strong id="ble-paired-bat" class="text-stone-800 font-semibold">84%</strong>
+                </div>
+                <div class="p-2 rounded-xl bg-white border border-stone-200">
+                  <span class="text-stone-500 block">Telemetry Stream</span>
+                  <strong class="text-emerald-700 font-semibold">Live (Notifications Active)</strong>
+                </div>
+              </div>
+              <button onclick="disconnectBluetooth()" class="w-full py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-semibold transition cursor-pointer">
+                Disconnect BLE Device
+              </button>
+            </div>
+          </div>
+
+          <!-- Data Source Mode Toggle -->
+          <div class="p-3 rounded-2xl bg-white border border-stone-200 space-y-2">
+            <span class="text-[11px] font-bold text-stone-700 uppercase tracking-tight block">Data Stream Source</span>
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="setDataSourceMode('bluetooth')" id="src-btn-ble" class="p-2.5 rounded-xl border border-stone-200 text-left transition cursor-pointer">
+                <strong class="block text-[11px] font-semibold text-blue-900">⚡ Real BLE Hardware</strong>
+                <span class="text-[10px] text-stone-500">Parse live characteristics from paired vest</span>
+              </button>
+              <button onclick="setDataSourceMode('simulated')" id="src-btn-sim" class="p-2.5 rounded-xl border border-teal-400 bg-teal-50/80 text-left transition cursor-pointer">
+                <strong class="block text-[11px] font-semibold text-teal-900">🧪 Simulated Telemetry</strong>
+                <span class="text-[10px] text-stone-500">Realistic vital fluctuations & scenarios</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Raw Packet Inspector -->
+        <div id="ble-tab-inspector" class="hidden space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="font-bold text-stone-800 block text-xs">GATT Characteristic Packets</span>
+              <p class="text-[10px] text-stone-500">Live incoming notifications and outgoing write commands</p>
+            </div>
+            <button onclick="clearBleLogs()" class="px-2 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 text-[10px] font-semibold transition cursor-pointer">Clear</button>
+          </div>
+
+          <!-- Packet Injection for Testing -->
+          <div class="p-2.5 rounded-xl bg-stone-100 border border-stone-200 space-y-1.5">
+            <span class="text-[10px] uppercase font-bold text-stone-500">Test Parser & Inject Sample BLE Packet:</span>
+            <div class="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+              <button onclick="injectSampleBlePacket('hr')" class="py-1 px-1.5 bg-white hover:bg-stone-50 border border-stone-200 rounded-lg text-[10px] font-medium text-stone-700 transition cursor-pointer text-center">+ HR 0x2A37</button>
+              <button onclick="injectSampleBlePacket('temp')" class="py-1 px-1.5 bg-white hover:bg-stone-50 border border-stone-200 rounded-lg text-[10px] font-medium text-stone-700 transition cursor-pointer text-center">+ Temp 0x2A1C</button>
+              <button onclick="injectSampleBlePacket('vest')" class="py-1 px-1.5 bg-white hover:bg-stone-50 border border-stone-200 rounded-lg text-[10px] font-medium text-stone-700 transition cursor-pointer text-center">+ Vest 0xA001</button>
+              <button onclick="injectSampleBlePacket('spo2')" class="py-1 px-1.5 bg-white hover:bg-stone-50 border border-stone-200 rounded-lg text-[10px] font-medium text-stone-700 transition cursor-pointer text-center">+ SpO2 0x2A5F</button>
+              <button onclick="injectSampleBlePacket('bp')" class="py-1 px-1.5 bg-white hover:bg-stone-50 border border-stone-200 rounded-lg text-[10px] font-medium text-stone-700 transition cursor-pointer text-center">+ BP 0x2A35</button>
+              <button onclick="injectSampleBlePacket('bat')" class="py-1 px-1.5 bg-white hover:bg-stone-50 border border-stone-200 rounded-lg text-[10px] font-medium text-stone-700 transition cursor-pointer text-center">+ Bat 0x2A19</button>
+            </div>
+          </div>
+
+          <!-- Hex Log Stream -->
+          <div id="ble-log-container" class="p-3 bg-stone-950 text-stone-200 rounded-2xl font-mono text-[10px] max-h-64 overflow-y-auto space-y-1.5 border border-stone-800 shadow-inner">
+            <div class="text-stone-500 py-6 text-center italic">No BLE packets logged yet. Connect a device or click inject buttons above.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="px-5 py-3 border-t border-stone-100 bg-stone-50/90 flex items-center justify-between text-xs text-stone-500">
+        <span class="flex items-center gap-1">
+          <span id="ble-footer-dot" class="w-2 h-2 rounded-full bg-teal-500"></span>
+          Mode: <strong id="ble-footer-mode">Simulated Telemetry</strong>
+        </span>
+        <button onclick="closeBleModal()" class="px-3.5 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-900 text-white font-semibold transition cursor-pointer">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- AUTOMATIC EMERGENCY CALL COUNTDOWN MODAL -->
+  <!-- ============================================== -->
+  <div id="emergency-countdown-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/80 backdrop-blur-md">
+    <div class="bg-white rounded-3xl shadow-2xl border-2 border-rose-500 w-full max-w-md overflow-hidden text-center p-6 space-y-5">
+      <!-- Danger Icon -->
+      <div class="relative mx-auto w-20 h-20 flex items-center justify-center">
+        <div class="absolute inset-0 rounded-full bg-rose-500/20 animate-ping"></div>
+        <div class="w-16 h-16 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-lg shadow-rose-600/30 text-2xl font-bold">
+          🚨
+        </div>
+      </div>
+
+      <div class="space-y-1.5">
+        <span class="px-3 py-1 rounded-full bg-rose-100 text-rose-800 text-xs font-black tracking-wider uppercase inline-block">
+          🚨 Critical Biometric Emergency
+        </span>
+        <h3 class="text-xl font-black text-stone-900 tracking-tight">
+          Automatically Calling Emergency Contact
+        </h3>
+        <p class="text-xs text-stone-600 leading-relaxed max-w-xs mx-auto">
+          Critical vital stress detected. Auto-dialing emergency contact and transmitting satellite GPS coordinates.
+        </p>
+      </div>
+
+      <!-- Countdown -->
+      <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200 space-y-1.5">
+        <div id="emergency-cd-num" class="text-4xl font-black text-rose-600 font-mono tracking-tight">
+          00:05
+        </div>
+        <div class="text-xs font-bold text-rose-900">
+          Auto-dialing David Lin (+1 555-234-8921)
+        </div>
+        <div class="text-[11px] text-rose-700 font-mono">
+          Location: 37.7749° N, 122.4194° W (Oak Ridge Trail)
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="space-y-2 pt-1">
+        <button
+          onclick="initiateEmergencyCallNow()"
+          class="w-full py-3 px-4 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-rose-600/30 transition cursor-pointer"
+        >
+          📞 Call David Lin Immediately
+        </button>
+
+        <button
+          onclick="cancelEmergencyCall()"
+          class="w-full py-2.5 px-4 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs transition cursor-pointer border border-stone-200"
+        >
+          Cancel / False Alarm (I am OK)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- ACTIVE EMERGENCY CALL IN PROGRESS OVERLAY -->
+  <!-- ============================================== -->
+  <div id="emergency-active-call-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/85 backdrop-blur-md">
+    <div class="bg-stone-900 text-white rounded-3xl shadow-2xl border border-stone-800 w-full max-w-md overflow-hidden p-6 space-y-6 text-center">
+      <!-- Call icon -->
+      <div class="relative mx-auto w-24 h-24 flex items-center justify-center">
+        <div class="absolute inset-0 rounded-full bg-emerald-500/20 animate-ping"></div>
+        <div class="w-20 h-20 rounded-full bg-stone-800 border-2 border-emerald-500 flex items-center justify-center text-3xl text-emerald-400 shadow-xl">
+          👤
+        </div>
+      </div>
+
+      <div class="space-y-1">
+        <span class="text-[11px] font-mono tracking-widest text-emerald-400 uppercase font-bold flex items-center justify-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          Emergency Line Active
+        </span>
+        <h3 class="text-2xl font-black tracking-tight">David Lin</h3>
+        <p class="text-xs text-stone-400">Brother &bull; +1 (555) 234-8921</p>
+      </div>
+
+      <!-- Telemetry Stream -->
+      <div class="p-3.5 rounded-2xl bg-stone-800 border border-stone-700 text-left space-y-2">
+        <div class="flex items-center justify-between text-[11px] text-stone-400">
+          <span>Broadcasting Telemetry Stream</span>
+          <span class="text-emerald-400 font-mono font-bold">TRANSMITTING</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div class="bg-stone-900 p-2 rounded-xl border border-stone-800">
+            <span class="text-[10px] text-stone-500 block">Vitals Status</span>
+            <span id="em-vit-1" class="font-bold text-rose-400">128 bpm &bull; 101.4°F</span>
+          </div>
+          <div class="bg-stone-900 p-2 rounded-xl border border-stone-800">
+            <span class="text-[10px] text-stone-500 block">O2 & Pressure</span>
+            <span id="em-vit-2" class="font-bold text-rose-400">88% SpO2 &bull; 155/98</span>
+          </div>
+        </div>
+        <div class="text-[10px] text-stone-400 font-mono">
+          Sector: Oak Ridge Ravine (37.7749° N, 122.4194° W)
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="flex flex-col gap-2.5">
+        <a
+          href="tel:+15552348921"
+          class="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg transition"
+        >
+          📞 Open Phone Dialer
+        </a>
+        <button
+          onclick="endEmergencyCall()"
+          class="w-full py-3 px-4 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg transition cursor-pointer"
+        >
+          End Call & Return to Dashboard
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLIENT SCRIPT -->
+  <script>
+    let currentScenario = 'normal';
+    let companionMode = 'daily'; // 'daily' or 'disaster'
+    let isVestConnected = true;
+    let isSosActive = false;
+    let waterMl = 1250;
+    let timerSecs = 0;
+    let timerRunning = false;
+    let timerInterval = null;
+
+    // Companion Mode Toggle
+    function setCompanionMode(mode) {
+      companionMode = mode;
+      const dailyBtnApp = document.getElementById('app-mode-daily');
+      const disasterBtnApp = document.getElementById('app-mode-disaster');
+      const dailyBtnDemo = document.getElementById('demo-mode-daily');
+      const disasterBtnDemo = document.getElementById('demo-mode-disaster');
+
+      const dailyNav = document.getElementById('daily-nav');
+      const disasterNav = document.getElementById('disaster-nav');
+      const disasterView = document.getElementById('disaster-mode-view');
+      const homeView = document.getElementById('tab-home');
+
+      if (mode === 'disaster') {
+        dailyBtnApp.className = 'flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-200 text-stone-500 hover:text-stone-800';
+        disasterBtnApp.className = 'flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-200 bg-rose-600 text-white shadow-xs ring-2 ring-rose-500/50 font-bold';
+        
+        dailyBtnDemo.className = 'px-2 py-1 rounded-lg font-medium text-stone-600 hover:text-stone-900 text-[11px]';
+        disasterBtnDemo.className = 'px-2 py-1 rounded-lg font-bold bg-rose-600 text-white text-[11px]';
+
+        dailyNav.classList.add('hidden');
+        disasterNav.classList.remove('hidden');
+
+        // Always show home / disaster view and hide trend graphs
+        switchTab('home');
+        homeView.classList.add('hidden');
+        disasterView.classList.remove('hidden');
+      } else {
+        dailyBtnApp.className = 'flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-200 bg-white text-stone-900 shadow-xs';
+        disasterBtnApp.className = 'flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-200 text-stone-500 hover:text-stone-800';
+
+        dailyBtnDemo.className = 'px-2 py-1 rounded-lg font-bold bg-teal-700 text-white text-[11px]';
+        disasterBtnDemo.className = 'px-2 py-1 rounded-lg font-medium text-stone-600 hover:text-stone-900 text-[11px]';
+
+        disasterNav.classList.add('hidden');
+        dailyNav.classList.remove('hidden');
+
+        disasterView.classList.add('hidden');
+        homeView.classList.remove('hidden');
+      }
+      updateUI(currentScenario);
+    }
+
+    // Toggle SOS Beacon
+    function toggleSosBeacon() {
+      isSosActive = !isSosActive;
+      const notice = document.getElementById('disaster-sos-notice');
+      const btn = document.getElementById('disaster-beacon-btn');
+      const txt = document.getElementById('disaster-beacon-text');
+
+      if (isSosActive) {
+        notice.classList.remove('hidden');
+        btn.className = 'py-3 px-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-md bg-rose-600 text-white ring-4 ring-rose-400 animate-pulse cursor-pointer';
+        txt.innerText = '🚨 SOS ACTIVE — FLASHING VEST LEDS';
+      } else {
+        notice.classList.add('hidden');
+        btn.className = 'py-3 px-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-md bg-rose-700 hover:bg-rose-600 text-white transition cursor-pointer';
+        txt.innerText = 'TRIGGER VEST SOS BEACON';
+      }
+    }
+
+    // Switch Tab
+    function switchTab(tabId) {
+      const tabs = ['home', 'trends', 'insights', 'environment', 'history', 'settings'];
+      tabs.forEach(t => {
+        const el = document.getElementById('tab-' + t);
+        const btn = document.getElementById('tab-btn-' + t);
+        if (t === tabId) {
+          el.classList.remove('hidden');
+          if (btn) btn.className = 'flex flex-col items-center gap-0.5 text-teal-700 font-bold';
+        } else {
+          el.classList.add('hidden');
+          if (btn) btn.className = 'flex flex-col items-center gap-0.5 text-stone-400 hover:text-stone-600 font-medium';
+        }
+      });
+
+      if (companionMode === 'disaster') {
+        const disasterView = document.getElementById('disaster-mode-view');
+        if (tabId === 'home') {
+          disasterView.classList.remove('hidden');
+          document.getElementById('tab-home').classList.add('hidden');
+        } else {
+          disasterView.classList.add('hidden');
+        }
+      }
+    }
+
+    // Toggle Trend View
+    function toggleTrendView(view) {
+      if (view === 'today') {
+        document.getElementById('view-trend-today').classList.remove('hidden');
+        document.getElementById('view-trend-week').classList.add('hidden');
+        document.getElementById('btn-trend-today').className = 'px-2.5 py-0.5 rounded-lg font-semibold bg-white text-stone-900 shadow-2xs';
+        document.getElementById('btn-trend-week').className = 'px-2.5 py-0.5 rounded-lg font-semibold text-stone-600';
+      } else {
+        document.getElementById('view-trend-today').classList.add('hidden');
+        document.getElementById('view-trend-week').classList.remove('hidden');
+        document.getElementById('btn-trend-today').className = 'px-2.5 py-0.5 rounded-lg font-semibold text-stone-600';
+        document.getElementById('btn-trend-week').className = 'px-2.5 py-0.5 rounded-lg font-semibold bg-white text-stone-900 shadow-2xs';
+      }
+    }
+
+    // Toggle Vest connection
+    function toggleVestConnection() {
+      if (isVestConnected) {
+        setScenario('disconnected');
+      } else {
+        setScenario('normal');
+      }
+    }
+
+    // Scenario Switcher
+    function setScenario(scen) {
+      currentScenario = scen;
+      const scenBtns = ['normal', 'warning', 'critical', 'disconnected'];
+      scenBtns.forEach(s => {
+        const b = document.getElementById('btn-scen-' + s);
+        if (s === scen) {
+          b.className = 'px-2 py-1 rounded-lg font-semibold transition text-white text-[11px] ' + 
+            (s === 'normal' ? 'bg-emerald-600' : s === 'warning' ? 'bg-amber-500' : s === 'critical' ? 'bg-rose-600' : 'bg-stone-700');
+        } else {
+          b.className = 'px-2 py-1 rounded-lg font-medium transition text-stone-600 hover:text-stone-900 text-[11px]';
+        }
+      });
+
+      const banner = document.getElementById('standalone-banner');
+      const vestPill = document.getElementById('vest-status-pill');
+      const vestText = document.getElementById('vest-status-text');
+
+      if (scen === 'disconnected') {
+        isVestConnected = false;
+        banner.classList.remove('hidden');
+        vestPill.className = 'flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-950/80 text-amber-300 border border-amber-800/60 cursor-pointer';
+        vestText.innerText = 'Vest Offline';
+        updateUI('standalone');
+        cancelEmergencyCall();
+      } else {
+        isVestConnected = true;
+        banner.classList.add('hidden');
+        vestPill.className = 'flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-teal-900/80 text-teal-300 border border-teal-700/60 cursor-pointer';
+        vestText.innerText = 'Vest Connected (84%)';
+        updateUI(scen);
+        if (scen === 'critical') {
+          startEmergencyCountdown();
+        } else {
+          cancelEmergencyCall();
+        }
+      }
+    }
+
+    // --- LIFE-SAFETY PROTOCOL: AUTOMATIC EMERGENCY CALL ---
+    let emergencyCountdown = 5;
+    let emergencyTimer = null;
+
+    function startEmergencyCountdown() {
+      emergencyCountdown = 5;
+      const modal = document.getElementById('emergency-modal');
+      const box = document.getElementById('emergency-countdown-box');
+      const act = document.getElementById('emergency-active-call');
+      const numEl = document.getElementById('emergency-countdown-num');
+      if (!modal) return;
+      if (box) box.classList.remove('hidden');
+      if (act) act.classList.add('hidden');
+      if (numEl) numEl.innerText = '00:05';
+      modal.classList.remove('hidden');
+
+      if (emergencyTimer) clearInterval(emergencyTimer);
+      emergencyTimer = setInterval(() => {
+        emergencyCountdown--;
+        if (emergencyCountdown >= 0 && numEl) {
+          numEl.innerText = '00:0' + emergencyCountdown;
+        }
+        if (emergencyCountdown <= 0) {
+          clearInterval(emergencyTimer);
+          confirmEmergencyCall();
+        }
+      }, 1000);
+    }
+
+    function cancelEmergencyCall() {
+      if (emergencyTimer) clearInterval(emergencyTimer);
+      const modal = document.getElementById('emergency-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function confirmEmergencyCall() {
+      if (emergencyTimer) clearInterval(emergencyTimer);
+      const box = document.getElementById('emergency-countdown-box');
+      const act = document.getElementById('emergency-active-call');
+      if (box) box.classList.add('hidden');
+      if (act) act.classList.remove('hidden');
+      try {
+        window.open('tel:+15552348921', '_self');
+      } catch (_) {}
+    }
+
+    function endEmergencyCall() {
+      if (emergencyTimer) clearInterval(emergencyTimer);
+      const modal = document.getElementById('emergency-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function updateUI(mode) {
+      // Daily components
+      const card = document.getElementById('main-status-card');
+      const badge = document.getElementById('status-badge');
+      const title = document.getElementById('status-title');
+      const sub = document.getElementById('status-sub');
+      const ping = document.getElementById('aura-ping-circle');
+      const core = document.getElementById('aura-core-circle');
+
+      const valB = document.getElementById('val-breathing');
+      const descB = document.getElementById('desc-breathing');
+      const barB = document.getElementById('bar-breathing');
+
+      const valT = document.getElementById('val-temp');
+      const descT = document.getElementById('desc-temp');
+      const barT = document.getElementById('bar-temp');
+
+      const valH = document.getElementById('val-heart');
+      const descH = document.getElementById('desc-heart');
+
+      const valM = document.getElementById('val-motion');
+      const sneak = document.getElementById('sneak-insight');
+      const flagged = document.getElementById('flagged-moments-box');
+
+      // Disaster components
+      const dCard = document.getElementById('disaster-status-card');
+      const dBadge = document.getElementById('disaster-badge');
+      const dTitle = document.getElementById('disaster-status-title');
+      const dSub = document.getElementById('disaster-status-sub');
+      const dTempCard = document.getElementById('disaster-temp-card');
+      const dTempZone = document.getElementById('disaster-temp-zone');
+      const dValTemp = document.getElementById('disaster-val-temp');
+      const dTempDesc = document.getElementById('disaster-temp-desc');
+
+      const dBreathCard = document.getElementById('disaster-breath-card');
+      const dBreathZone = document.getElementById('disaster-breath-zone');
+      const dValBreath = document.getElementById('disaster-val-breath');
+      const dBreathDesc = document.getElementById('disaster-breath-desc');
+
+      const dValHeart = document.getElementById('disaster-val-heart');
+      const dPulseBadge = document.getElementById('disaster-pulse-badge');
+      const dValMotion = document.getElementById('disaster-val-motion');
+      const dEnvHeat = document.getElementById('disaster-env-heat');
+      const dEnvAqi = document.getElementById('disaster-env-aqi');
+
+      const valSpo2 = document.getElementById('val-spo2');
+      const descSpo2 = document.getElementById('desc-spo2');
+      const barSpo2 = document.getElementById('bar-spo2');
+      const valBp = document.getElementById('val-bp');
+      const descBp = document.getElementById('desc-bp');
+      const barBp = document.getElementById('bar-bp');
+
+      const dValSpo2 = document.getElementById('disaster-val-spo2');
+      const dBadgeSpo2 = document.getElementById('disaster-spo2-badge');
+      const dDescSpo2 = document.getElementById('disaster-spo2-desc');
+      const dValBp = document.getElementById('disaster-val-bp');
+      const dBadgeBp = document.getElementById('disaster-bp-badge');
+      const dDescBp = document.getElementById('disaster-bp-desc');
+
+      if (mode === 'critical') {
+        startEmergencyCountdown();
+        // Daily
+        card.className = 'p-5 rounded-3xl border shadow-sm transition-all duration-500 bg-rose-50 border-rose-200';
+        badge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800';
+        badge.innerText = '⚠️ Severe Heat Strain';
+        title.innerText = 'Seek help now';
+        sub.innerText = 'Warning signs of heat exhaustion detected. Discontinue exertion and move to shade immediately.';
+        ping.className = 'absolute inset-0 rounded-full bg-rose-500 opacity-40 animate-aura';
+        core.className = 'w-10 h-10 rounded-full bg-rose-600 flex items-center justify-center text-white shadow-md font-bold text-base';
+        core.innerText = '!';
+
+        valB.innerText = '26.4';
+        descB.innerText = 'Rapid shallow';
+        barB.className = 'h-full bg-rose-500 rounded-full w-4/5';
+
+        valT.innerText = '101.4°F';
+        descT.innerText = 'High core strain';
+        barT.className = 'h-full bg-rose-500 rounded-full w-5/6';
+
+        valH.innerText = '126';
+        descH.innerText = 'Elevated pulse';
+
+        valM.innerText = 'Heavy Strain';
+        sneak.innerText = 'Core temp reached 101.4°F with elevated breathing. Immediate hydration and cooling shelter advised.';
+        flagged.className = 'p-3 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-900';
+        flagged.innerHTML = '<strong>2:45 PM</strong> — Core temp climbed past 101°F. Health threshold crossed.';
+
+        if (valSpo2) valSpo2.innerText = '89';
+        if (descSpo2) descSpo2.innerText = 'Critical hypoxia (<90%)';
+        if (barSpo2) barSpo2.className = 'h-full bg-rose-500 rounded-full transition-all duration-700 w-[89%]';
+
+        if (valBp) valBp.innerText = '154/102';
+        if (descBp) descBp.innerText = 'Hypertensive crisis (>150/100)';
+        if (barBp) barBp.className = 'h-full bg-rose-500 rounded-full transition-all duration-700 w-full';
+
+        // Disaster
+        dCard.className = 'p-5 sm:p-6 rounded-3xl border-2 shadow-xl transition-all duration-300 bg-rose-950 text-white border-rose-500 shadow-rose-900/40';
+        dBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-rose-500 text-white animate-pulse';
+        dBadge.innerText = '⚠️ Critical Thermal Emergency';
+        dTitle.innerText = 'SEEK IMMEDIATE SHELTER & ACTIVE COOLING';
+        dSub.innerText = 'Core body temperature has exceeded heat-stroke thresholds. Cognitive disorientation and physical collapse are imminent without immediate intervention.';
+
+        dTempCard.className = 'p-5 rounded-3xl border-2 shadow-md bg-rose-50 border-rose-500';
+        dTempZone.className = 'px-2 py-0.5 rounded-md text-[10px] font-black bg-rose-600 text-white';
+        dTempZone.innerText = 'DANGER (>101°)';
+        dValTemp.innerText = '101.4°F';
+        dTempDesc.innerText = '⚠️ Extreme heat exhaustion risk. Cease movement immediately.';
+
+        dBreathCard.className = 'p-5 rounded-3xl border-2 shadow-md bg-rose-50 border-rose-500';
+        dBreathZone.className = 'px-2 py-0.5 rounded-md text-[10px] font-black bg-rose-600 text-white';
+        dBreathZone.innerText = 'RAPID RESPIRATION';
+        dValBreath.innerText = '26.8';
+        dBreathDesc.innerText = 'Shallow panting detected. Inability to cool lungs.';
+
+        dValHeart.innerText = '124';
+        dPulseBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800';
+        dPulseBadge.innerText = 'HEAVY CARDIAC LOAD';
+        dValMotion.innerText = 'Heavy Strain';
+        dEnvHeat.innerText = '108°F';
+        dEnvAqi.innerText = '145 AQI';
+
+        if (dValSpo2) dValSpo2.innerText = '89';
+        if (dBadgeSpo2) {
+          dBadgeSpo2.className = 'px-2 py-0.5 rounded text-[10px] font-black bg-rose-600 text-white';
+          dBadgeSpo2.innerText = 'HYPOXIA CRITICAL';
+        }
+        if (dDescSpo2) dDescSpo2.innerText = 'Arterial blood oxygen saturation fallen below 90%. Administer supplemental O2.';
+
+        if (dValBp) dValBp.innerText = '154/102';
+        if (dBadgeBp) {
+          dBadgeBp.className = 'px-2 py-0.5 rounded text-[10px] font-black bg-rose-600 text-white';
+          dBadgeBp.innerText = 'HYPERTENSIVE LOAD';
+        }
+        if (dDescBp) dDescBp.innerText = 'Severe arterial vascular strain under extreme heat stress.';
+
+      } else if (mode === 'warning') {
+        cancelEmergencyCall();
+        // Daily
+        card.className = 'p-5 rounded-3xl border shadow-sm transition-all duration-500 bg-amber-50 border-amber-200';
+        badge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800';
+        badge.innerText = '⏱️ Heat Caution';
+        title.innerText = 'Take a break, your body needs attention';
+        sub.innerText = 'Core temperature is climbing. Find shade and sip cool water before symptoms develop.';
+        ping.className = 'absolute inset-0 rounded-full bg-amber-500 opacity-40 animate-aura';
+        core.className = 'w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white shadow-md font-bold text-base';
+        core.innerText = '⚠️';
+
+        valB.innerText = '20.2';
+        descB.innerText = 'Elevated pace';
+        barB.className = 'h-full bg-amber-500 rounded-full w-3/5';
+
+        valT.innerText = '99.8°F';
+        descT.innerText = 'Warm core';
+        barT.className = 'h-full bg-amber-500 rounded-full w-3/5';
+
+        valH.innerText = '96';
+        descH.innerText = 'Active pace';
+
+        valM.innerText = 'Sustained Pace';
+        sneak.innerText = 'Your body temp has risen for 20 mins — happens before heat exhaustion. Consider resting in shade.';
+        flagged.className = 'p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900';
+        flagged.innerHTML = '<strong>1:15 PM</strong> — Approached 99.8°F. Advisory threshold crossed.';
+
+        if (valSpo2) valSpo2.innerText = '92';
+        if (descSpo2) descSpo2.innerText = 'Mild hypoxia (90-93%)';
+        if (barSpo2) barSpo2.className = 'h-full bg-amber-500 rounded-full transition-all duration-700 w-[92%]';
+
+        if (valBp) valBp.innerText = '138/88';
+        if (descBp) descBp.innerText = 'Stage 1 strain (135-145/88-95)';
+        if (barBp) barBp.className = 'h-full bg-amber-500 rounded-full transition-all duration-700 w-3/4';
+
+        // Disaster
+        dCard.className = 'p-5 sm:p-6 rounded-3xl border-2 shadow-xl transition-all duration-300 bg-amber-950 text-white border-amber-500 shadow-amber-900/40';
+        dBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-amber-500 text-stone-950';
+        dBadge.innerText = 'Caution: Heat Strain Onset';
+        dTitle.innerText = 'REST IN SHADE & HYDRATE NOW';
+        dSub.innerText = 'Continuous upward thermal climb detected over the last 20 minutes. Evaporative cooling is failing due to high ambient heat & humidity.';
+
+        dTempCard.className = 'p-5 rounded-3xl border-2 shadow-md bg-amber-50 border-amber-500';
+        dTempZone.className = 'px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-500 text-black';
+        dTempZone.innerText = 'CAUTION (>99.5°)';
+        dValTemp.innerText = '99.8°F';
+        dTempDesc.innerText = '⏱️ Rising thermal load. Loosen collar and seek shaded canopy.';
+
+        dBreathCard.className = 'p-5 rounded-3xl border-2 shadow-md bg-amber-50 border-amber-500';
+        dBreathZone.className = 'px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-500 text-black';
+        dBreathZone.innerText = 'ELEVATED';
+        dValBreath.innerText = '20.4';
+        dBreathDesc.innerText = 'Elevated breathing under current thermal pace.';
+
+        dValHeart.innerText = '98';
+        dPulseBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800';
+        dPulseBadge.innerText = 'ELEVATED PULSE';
+        dValMotion.innerText = 'Sustained Pace';
+        dEnvHeat.innerText = '102°F';
+        dEnvAqi.innerText = '115 AQI';
+
+        if (dValSpo2) dValSpo2.innerText = '92';
+        if (dBadgeSpo2) {
+          dBadgeSpo2.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900';
+          dBadgeSpo2.innerText = 'MILD HYPOXIA';
+        }
+        if (dDescSpo2) dDescSpo2.innerText = 'Mild oxygen dip under physical load and high ambient temperature.';
+
+        if (dValBp) dValBp.innerText = '138/88';
+        if (dBadgeBp) {
+          dBadgeBp.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900';
+          dBadgeBp.innerText = 'ELEVATED STAGE 1';
+        }
+        if (dDescBp) dDescBp.innerText = 'Moderately high cardiovascular response to active pace.';
+
+      } else {
+        cancelEmergencyCall();
+        // Normal
+        card.className = 'p-5 rounded-3xl border shadow-sm transition-all duration-500 bg-emerald-50/80 border-emerald-200/80';
+        badge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800';
+        badge.innerText = '● Optimal Balance';
+        title.innerText = "You're doing fine";
+        sub.innerText = 'Your breathing rhythm and core temperature are calm and balanced.';
+        ping.className = 'absolute inset-0 rounded-full bg-emerald-500 opacity-40 animate-aura';
+        core.className = 'w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white shadow-md font-bold text-base';
+        core.innerText = '✓';
+
+        valB.innerText = '15.2';
+        descB.innerText = 'Relaxed pace';
+        barB.className = 'h-full bg-teal-500 rounded-full w-2/5';
+
+        valT.innerText = '98.6°F';
+        descT.innerText = 'Comfortable';
+        barT.className = 'h-full bg-emerald-500 rounded-full w-1/3';
+
+        valH.innerText = '72';
+        descH.innerText = 'Resting easy';
+
+        valM.innerText = 'Gentle Walk';
+        sneak.innerText = 'Your breathing rhythm is steady. Core body heat is dissipating effectively in current 91°F ambient warmth.';
+        flagged.className = 'p-3 rounded-2xl bg-emerald-50 text-emerald-800 text-xs';
+        flagged.innerText = '✓ No warning thresholds were crossed today. Smooth pacing!';
+
+        if (valSpo2) valSpo2.innerText = '98';
+        if (descSpo2) descSpo2.innerText = 'Optimal saturation';
+        if (barSpo2) barSpo2.className = 'h-full bg-teal-500 rounded-full transition-all duration-700 w-full';
+
+        if (valBp) valBp.innerText = '118/76';
+        if (descBp) descBp.innerText = 'Normal range';
+        if (barBp) barBp.className = 'h-full bg-emerald-500 rounded-full transition-all duration-700 w-2/5';
+
+        // Disaster
+        dCard.className = 'p-5 sm:p-6 rounded-3xl border-2 shadow-xl transition-all duration-300 bg-emerald-950 text-white border-emerald-500 shadow-emerald-900/30';
+        dBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-500 text-stone-950';
+        dBadge.innerText = '✓ Field Vitals Stable';
+        dTitle.innerText = 'CONTINUE MISSION PACING';
+        dSub.innerText = 'Core temperature and respiration are within tolerable operational limits. Monitor hydration as environmental heat peaks.';
+
+        dTempCard.className = 'p-5 rounded-3xl border-2 shadow-md bg-emerald-50 border-emerald-500';
+        dTempZone.className = 'px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-600 text-white';
+        dTempZone.innerText = 'SAFE (<99.5°)';
+        dValTemp.innerText = '98.6°F';
+        dTempDesc.innerText = '✓ Normal thermoregulation. Heat dissipation active.';
+
+        dBreathCard.className = 'p-5 rounded-3xl border-2 shadow-md bg-teal-50 border-teal-500';
+        dBreathZone.className = 'px-2 py-0.5 rounded-md text-[10px] font-black bg-teal-600 text-white';
+        dBreathZone.innerText = 'RESTING CORRIDOR';
+        dValBreath.innerText = '15.2';
+        dBreathDesc.innerText = 'Smooth diaphragmatic pacing. Normal lung ventilation.';
+
+        dValHeart.innerText = '72';
+        dPulseBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-stone-100 text-stone-700';
+        dPulseBadge.innerText = 'MODERATE PULSE';
+        dValMotion.innerText = 'Gentle Walk';
+        dEnvHeat.innerText = '98°F';
+        dEnvAqi.innerText = '78 AQI';
+
+        if (dValSpo2) dValSpo2.innerText = '98';
+        if (dBadgeSpo2) {
+          dBadgeSpo2.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800';
+          dBadgeSpo2.innerText = 'SATURATION OK';
+        }
+        if (dDescSpo2) dDescSpo2.innerText = 'Normal arterial blood saturation.';
+
+        if (dValBp) dValBp.innerText = '118/76';
+        if (dBadgeBp) {
+          dBadgeBp.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800';
+          dBadgeBp.innerText = 'TARGET RANGE';
+        }
+        if (dDescBp) dDescBp.innerText = 'Continuous arterial vascular estimation.';
+      }
+    }
+
+    // Hydration
+    function addWater() {
+      waterMl = Math.min(3500, waterMl + 250);
+      document.getElementById('water-text').innerText = waterMl.toLocaleString() + ' / 2,500 ml';
+      const pct = Math.min(100, (waterMl / 2500) * 100);
+      document.getElementById('water-bar').style.width = pct + '%';
+    }
+
+    // Shade timer
+    function toggleTimer() {
+      const btn = document.getElementById('btn-timer');
+      if (timerRunning) {
+        clearInterval(timerInterval);
+        timerRunning = false;
+        btn.innerText = '⏳ 10m Shade Rest';
+        btn.className = 'flex-1 py-1.5 px-2 rounded-xl bg-stone-100 text-stone-700 text-xs font-semibold border border-stone-200';
+      } else {
+        timerSecs = 600;
+        timerRunning = true;
+        btn.className = 'flex-1 py-1.5 px-2 rounded-xl bg-amber-100 text-amber-900 text-xs font-semibold border border-amber-300';
+        timerInterval = setInterval(() => {
+          timerSecs--;
+          const m = Math.floor(timerSecs / 60);
+          const s = timerSecs % 60;
+          btn.innerText = `⏳ Rest (${m}:${s < 10 ? '0' : ''}${s})`;
+          if (timerSecs <= 0) {
+            clearInterval(timerInterval);
+            timerRunning = false;
+            btn.innerText = '✓ Rest Complete!';
+          }
+        }, 1000);
+      }
+    }
+
+    // --- WEB BLUETOOTH INTEGRATION & PARSERS ---
+    let dataSourceMode = 'simulated'; // 'simulated' | 'bluetooth'
+    let bleDevice = null;
+    let bleServer = null;
+    let bleControlChar = null;
+    let bleState = 'disconnected'; // 'disconnected' | 'requesting' | 'connecting' | 'connected' | 'error'
+    let bleLogs = [];
+
+    const BLE_UUIDS = {
+      HEART_RATE_SERVICE: 'heart_rate',
+      HEALTH_THERMOMETER_SERVICE: 'health_thermometer',
+      BATTERY_SERVICE: 'battery_service',
+      HEART_RATE_MEASUREMENT: 'heart_rate_measurement',
+      TEMPERATURE_MEASUREMENT: 'temperature_measurement',
+      BATTERY_LEVEL: 'battery_level',
+      AURA_VEST_SERVICE: '0000a000-0000-1000-8000-00805f9b34fb',
+      AURA_TELEMETRY_CHAR: '0000a001-0000-1000-8000-00805f9b34fb',
+      AURA_CONTROL_CHAR: '0000a002-0000-1000-8000-00805f9b34fb'
+    };
+
+    function formatHexBytes(dataView) {
+      if (!dataView) return '';
+      const bytes = new Uint8Array(dataView.buffer, dataView.byteOffset, dataView.byteLength);
+      return Array.from(bytes).map(b => '0x' + b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+    }
+
+    // Bluetooth SIG Heart Rate Parser (0x2A37)
+    function parseHeartRateMeasurement(dataView) {
+      if (!dataView || dataView.byteLength < 2) return null;
+      const flags = dataView.getUint8(0);
+      const is16Bit = (flags & 0x01) === 1;
+      let offset = 1;
+      let heartRate = 0;
+      if (is16Bit) {
+        if (dataView.byteLength >= offset + 2) {
+          heartRate = dataView.getUint16(offset, true);
+          offset += 2;
+        }
+      } else {
+        heartRate = dataView.getUint8(offset);
+        offset += 1;
+      }
+      const contactDetected = (flags & 0x06) === 0x06;
+      return { heartRate, contactDetected, rawHex: formatHexBytes(dataView) };
+    }
+
+    // Bluetooth SIG Health Thermometer Parser (0x2A1C)
+    function parseTemperatureMeasurement(dataView) {
+      if (!dataView || dataView.byteLength < 2) return null;
+      const flags = dataView.getUint8(0);
+      const isFahrenheit = (flags & 0x01) === 1;
+      let temp = 0;
+      if (dataView.byteLength >= 5) {
+        const raw = dataView.getUint32(1, true);
+        let mantissa = raw & 0x00ffffff;
+        if (mantissa >= 0x00800000) mantissa -= 0x01000000;
+        let exponent = raw >> 24;
+        if (exponent >= 0x80) exponent -= 0x100;
+        temp = mantissa * Math.pow(10, exponent);
+      } else if (dataView.byteLength >= 2) {
+        const raw16 = dataView.getUint16(0, true);
+        temp = raw16 > 200 ? raw16 / 10 : raw16;
+      }
+      if (isNaN(temp) || temp < 10 || temp > 200) temp = 98.6;
+      const tempF = isFahrenheit ? temp : (temp * 9) / 5 + 32;
+      const tempC = isFahrenheit ? ((temp - 32) * 5) / 9 : temp;
+      return { tempF: parseFloat(tempF.toFixed(1)), tempC: parseFloat(tempC.toFixed(1)), rawHex: formatHexBytes(dataView) };
+    }
+
+    // Battery Level Parser (0x2A19)
+    function parseBatteryLevel(dataView) {
+      if (!dataView || dataView.byteLength < 1) return null;
+      return { batteryLevel: Math.min(100, Math.max(0, dataView.getUint8(0))), rawHex: formatHexBytes(dataView) };
+    }
+
+    // Aura-Weave Vest Telemetry Parser (0xA001)
+    function parseVestTelemetry(dataView) {
+      if (!dataView || dataView.byteLength < 1) return null;
+      const breathingRate = dataView.getUint8(0);
+      let bodyTemp = null;
+      if (dataView.byteLength >= 3) {
+        const tInt = dataView.getUint8(1);
+        const tDec = dataView.getUint8(2);
+        const parsedTemp = tInt + tDec / 100;
+        bodyTemp = parsedTemp < 50 ? parseFloat(((parsedTemp * 9) / 5 + 32).toFixed(1)) : parseFloat(parsedTemp.toFixed(1));
+      }
+      const MOTION_STATES = ['Resting', 'Gentle Walk', 'Sustained Pace', 'Heavy Strain', 'Inactive / Fall'];
+      let motionState = 'Gentle Walk';
+      if (dataView.byteLength >= 4) {
+        motionState = MOTION_STATES[dataView.getUint8(3)] || 'Gentle Walk';
+      }
+      let motionSteps = null;
+      if (dataView.byteLength >= 6) {
+        motionSteps = dataView.getUint16(4, true);
+      }
+      return { breathingRate, bodyTemp, motionState, motionSteps, rawHex: formatHexBytes(dataView) };
+    }
+
+    function addBleLog(direction, service, charUuid, hex, summary) {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour12: false }) + '.' + String(now.getMilliseconds()).padStart(3, '0');
+      bleLogs.unshift({ time: timeStr, direction, service, charUuid, hex, summary });
+      if (bleLogs.length > 50) bleLogs.pop();
+      renderBleLogs();
+    }
+
+    function clearBleLogs() {
+      bleLogs = [];
+      renderBleLogs();
+    }
+
+    function renderBleLogs() {
+      const countEl = document.getElementById('ble-log-count');
+      if (countEl) countEl.innerText = bleLogs.length;
+      const container = document.getElementById('ble-log-container');
+      if (!container) return;
+      if (bleLogs.length === 0) {
+        container.innerHTML = '<div class="text-stone-500 py-6 text-center italic">No BLE packets logged yet. Connect a device or click inject buttons above.</div>';
+        return;
+      }
+      container.innerHTML = bleLogs.map(l => `
+        <div class="leading-tight border-b border-stone-800/60 pb-1">
+          <div class="flex items-center gap-1.5 text-[9px] text-stone-400">
+            <span class="text-stone-500">${l.time}</span>
+            <span class="px-1 rounded font-bold ${l.direction === 'RX' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/60' : 'bg-blue-950 text-blue-400 border border-blue-800/60'}">[${l.direction}]</span>
+            <span class="text-amber-400 font-semibold">${l.service}</span>
+            <span class="text-stone-400">(${l.charUuid})</span>
+          </div>
+          ${l.hex ? `<div class="text-cyan-300 mt-0.5 tracking-wide">HEX: <span class="text-cyan-200">${l.hex}</span></div>` : ''}
+          <div class="text-stone-300 mt-0.5 font-sans text-[11px]">${l.summary}</div>
+        </div>
+      `).join('');
+    }
+
+    // Open/Close BLE Modal
+    function openBleModal() {
+      const modal = document.getElementById('ble-modal');
+      if (modal) modal.classList.remove('hidden');
+      const isSupported = typeof navigator !== 'undefined' && 'bluetooth' in navigator;
+      const banner = document.getElementById('ble-browser-banner');
+      if (banner) {
+        if (!isSupported) {
+          banner.className = 'p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900';
+          banner.innerHTML = '<strong class="block text-[11px] font-semibold">Web Bluetooth Not Available in this Browser</strong><p class="text-[11px] text-amber-800">Use Google Chrome, Microsoft Edge, or a Chromium browser on Windows/macOS/Android to pair real hardware. You can test parser packets below!</p>';
+        }
+      }
+    }
+
+    function closeBleModal() {
+      const modal = document.getElementById('ble-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function setBleModalTab(tab) {
+      ['device', 'inspector'].forEach(t => {
+        const el = document.getElementById('ble-tab-' + t);
+        const btn = document.getElementById('ble-tab-' + t + '-btn');
+        if (el) el.classList.toggle('hidden', t !== tab);
+        if (btn) {
+          if (t === tab) {
+            btn.className = 'flex-1 py-1.5 rounded-xl font-semibold bg-white text-stone-900 shadow-2xs border border-stone-200/60';
+          } else {
+            btn.className = 'flex-1 py-1.5 rounded-xl font-semibold text-stone-500 hover:text-stone-800';
+          }
+        }
+      });
+    }
+
+    function setDataSourceMode(mode) {
+      dataSourceMode = mode;
+      const bleBtn = document.getElementById('src-btn-ble');
+      const simBtn = document.getElementById('src-btn-sim');
+      const demoBtn = document.getElementById('demo-source-btn');
+      const footerMode = document.getElementById('ble-footer-mode');
+      const footerDot = document.getElementById('ble-footer-dot');
+      const settingsBadge = document.getElementById('settings-ble-badge');
+
+      if (mode === 'bluetooth') {
+        if (bleBtn) bleBtn.className = 'p-2.5 rounded-xl border border-blue-400 bg-blue-50/80 text-left transition';
+        if (simBtn) simBtn.className = 'p-2.5 rounded-xl border border-stone-200 text-left transition';
+        if (demoBtn) {
+          demoBtn.innerText = '⚡ Real BLE';
+          demoBtn.className = 'px-2 py-1 rounded-lg font-bold bg-blue-50 border border-blue-300 text-blue-700 text-[10px] transition';
+        }
+        if (footerMode) footerMode.innerText = 'Live Web Bluetooth';
+        if (footerDot) footerDot.className = 'w-2 h-2 rounded-full bg-blue-500';
+        if (settingsBadge) {
+          settingsBadge.innerText = bleState === 'connected' ? 'Hardware Paired' : 'BLE Active';
+          settingsBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800';
+        }
+      } else {
+        if (bleBtn) bleBtn.className = 'p-2.5 rounded-xl border border-stone-200 text-left transition';
+        if (simBtn) simBtn.className = 'p-2.5 rounded-xl border border-teal-400 bg-teal-50/80 text-left transition';
+        if (demoBtn) {
+          demoBtn.innerText = '🧪 Sim Ticks';
+          demoBtn.className = 'px-2 py-1 rounded-lg font-bold bg-teal-50 border border-teal-300 text-teal-700 text-[10px] transition';
+        }
+        if (footerMode) footerMode.innerText = 'Simulated Telemetry';
+        if (footerDot) footerDot.className = 'w-2 h-2 rounded-full bg-teal-500';
+        if (settingsBadge) {
+          settingsBadge.innerText = 'Simulated Data';
+          settingsBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-600';
+        }
+      }
+    }
+
+    function toggleDataSourceMode() {
+      setDataSourceMode(dataSourceMode === 'bluetooth' ? 'simulated' : 'bluetooth');
+    }
+
+    // Connect via Web Bluetooth API
+    async function connectBluetooth() {
+      if (typeof navigator === 'undefined' || !navigator.bluetooth) {
+        alert('Web Bluetooth API is only supported in Google Chrome, Microsoft Edge, and Chromium-based browsers on Windows, macOS, Linux, and Android.');
+        return;
+      }
+      try {
+        const acceptAll = document.getElementById('ble-accept-all')?.checked ?? true;
+        const options = acceptAll
+          ? {
+              acceptAllDevices: true,
+              optionalServices: [
+                BLE_UUIDS.HEART_RATE_SERVICE,
+                BLE_UUIDS.HEALTH_THERMOMETER_SERVICE,
+                BLE_UUIDS.BATTERY_SERVICE,
+                BLE_UUIDS.AURA_VEST_SERVICE,
+                0x180D, 0x1809, 0x180F
+              ]
+            }
+          : {
+              filters: [{ namePrefix: 'Aura' }, { namePrefix: 'Weave' }, { namePrefix: 'Vest' }],
+              optionalServices: [
+                BLE_UUIDS.HEART_RATE_SERVICE,
+                BLE_UUIDS.HEALTH_THERMOMETER_SERVICE,
+                BLE_UUIDS.BATTERY_SERVICE,
+                BLE_UUIDS.AURA_VEST_SERVICE,
+                0x180D, 0x1809, 0x180F
+              ]
+            };
+
+        addBleLog('INFO', 'System', 'Scan', '', 'Opening Bluetooth device selection prompt...');
+        const device = await navigator.bluetooth.requestDevice(options);
+        bleDevice = device;
+        bleState = 'connecting';
+        updateBleUi();
+
+        device.addEventListener('gattserverdisconnected', () => {
+          bleState = 'disconnected';
+          isVestConnected = false;
+          updateBleUi();
+          addBleLog('INFO', 'System', 'GATT', '', 'Device disconnected.');
+        });
+
+        const server = await device.gatt.connect();
+        bleServer = server;
+
+        // Discover Heart Rate
+        try {
+          const hrService = await server.getPrimaryService(BLE_UUIDS.HEART_RATE_SERVICE);
+          const hrChar = await hrService.getCharacteristic(BLE_UUIDS.HEART_RATE_MEASUREMENT);
+          await hrChar.startNotifications();
+          hrChar.addEventListener('characteristicvaluechanged', (e) => {
+            const parsed = parseHeartRateMeasurement(e.target.value);
+            if (parsed) {
+              document.getElementById('val-heart').innerText = parsed.heartRate;
+              const dVal = document.getElementById('disaster-val-heart');
+              if (dVal) dVal.innerText = parsed.heartRate;
+              addBleLog('RX', 'Heart Rate', '0x2A37', parsed.rawHex, `HR: ${parsed.heartRate} bpm ${parsed.contactDetected ? '(Skin contact OK)' : ''}`);
+            }
+          });
+        } catch (_) {}
+
+        // Discover Health Thermometer
+        try {
+          const tService = await server.getPrimaryService(BLE_UUIDS.HEALTH_THERMOMETER_SERVICE);
+          const tChar = await tService.getCharacteristic(BLE_UUIDS.TEMPERATURE_MEASUREMENT);
+          await tChar.startNotifications();
+          tChar.addEventListener('characteristicvaluechanged', (e) => {
+            const parsed = parseTemperatureMeasurement(e.target.value);
+            if (parsed) {
+              document.getElementById('val-temp').innerText = parsed.tempF + '°F';
+              const dVal = document.getElementById('disaster-val-temp');
+              if (dVal) dVal.innerText = parsed.tempF + '°F';
+              if (parsed.tempF >= 100.8) setScenario('critical');
+              else if (parsed.tempF >= 99.5) setScenario('warning');
+              else setScenario('normal');
+              addBleLog('RX', 'Health Temp', '0x2A1C', parsed.rawHex, `Core Temp: ${parsed.tempF}°F (${parsed.tempC}°C)`);
+            }
+          });
+        } catch (_) {}
+
+        // Discover Battery
+        try {
+          const bService = await server.getPrimaryService(BLE_UUIDS.BATTERY_SERVICE);
+          const bChar = await bService.getCharacteristic(BLE_UUIDS.BATTERY_LEVEL);
+          const initVal = await bChar.readValue();
+          const parsed = parseBatteryLevel(initVal);
+          if (parsed) {
+            document.getElementById('ble-paired-bat').innerText = parsed.batteryLevel + '%';
+            document.getElementById('vest-status-text').innerText = `Vest Connected (${parsed.batteryLevel}%)`;
+          }
+        } catch (_) {}
+
+        // Discover Custom Vest Telemetry & Control
+        try {
+          const auraService = await server.getPrimaryService(BLE_UUIDS.AURA_VEST_SERVICE);
+          try {
+            const teleChar = await auraService.getCharacteristic(BLE_UUIDS.AURA_TELEMETRY_CHAR);
+            await teleChar.startNotifications();
+            teleChar.addEventListener('characteristicvaluechanged', (e) => {
+              const parsed = parseVestTelemetry(e.target.value);
+              if (parsed) {
+                if (parsed.breathingRate) {
+                  document.getElementById('val-breathing').innerText = parsed.breathingRate;
+                  const dVal = document.getElementById('disaster-val-breath');
+                  if (dVal) dVal.innerText = parsed.breathingRate;
+                }
+                if (parsed.bodyTemp) {
+                  document.getElementById('val-temp').innerText = parsed.bodyTemp + '°F';
+                }
+                if (parsed.motionState) {
+                  document.getElementById('val-motion').innerText = parsed.motionState;
+                }
+                addBleLog('RX', 'Vest Telemetry', '0xA001', parsed.rawHex, `Breaths: ${parsed.breathingRate} bpm | Motion: ${parsed.motionState}`);
+              }
+            });
+          } catch (_) {}
+
+          try {
+            bleControlChar = await auraService.getCharacteristic(BLE_UUIDS.AURA_CONTROL_CHAR);
+          } catch (_) {}
+        } catch (_) {}
+
+        bleState = 'connected';
+        isVestConnected = true;
+        setDataSourceMode('bluetooth');
+        updateBleUi();
+        addBleLog('INFO', 'System', 'Ready', '', `Connected to ${device.name || 'Aura-Weave Vest'}!`);
+      } catch (err) {
+        console.error('BLE connection failed:', err);
+        bleState = 'disconnected';
+        updateBleUi();
+        if (err.name !== 'NotFoundError') {
+          alert('Bluetooth connection failed: ' + (err.message || 'Unknown error'));
+        }
+      }
+    }
+
+    function disconnectBluetooth() {
+      if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
+        bleDevice.gatt.disconnect();
+      }
+      bleState = 'disconnected';
+      isVestConnected = false;
+      updateBleUi();
+      addBleLog('INFO', 'System', 'Disconnect', '', 'Session disconnected by user.');
+    }
+
+    function updateBleUi() {
+      const badge = document.getElementById('ble-modal-badge');
+      const dot = document.getElementById('ble-connected-dot');
+      const devName = document.getElementById('ble-active-device-name');
+      const unpairedBox = document.getElementById('ble-device-unpaired-box');
+      const pairedBox = document.getElementById('ble-device-paired-box');
+      const demoBleBtn = document.getElementById('demo-ble-btn');
+      const vestPill = document.getElementById('vest-status-pill');
+      const vestText = document.getElementById('vest-status-text');
+
+      if (bleState === 'connected') {
+        if (badge) { badge.className = 'text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800'; badge.innerText = 'Connected'; }
+        if (dot) dot.className = 'w-3 h-3 rounded-full bg-emerald-500 animate-pulse';
+        if (devName) devName.innerText = bleDevice ? (bleDevice.name || 'Aura-Weave Vest v2') : 'Aura-Weave Vest v2';
+        if (unpairedBox) unpairedBox.classList.add('hidden');
+        if (pairedBox) pairedBox.classList.remove('hidden');
+        if (demoBleBtn) { demoBleBtn.className = 'px-2.5 py-1 rounded-lg font-bold bg-blue-600 text-white text-[11px] flex items-center gap-1 transition'; demoBleBtn.innerText = '⚡ ' + (bleDevice?.name || 'BLE Vest'); }
+        if (vestPill) vestPill.className = 'flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-blue-900/80 text-blue-300 border border-blue-700/60 cursor-pointer';
+        if (vestText) vestText.innerText = (bleDevice?.name || 'BLE Vest') + ' (84%)';
+      } else {
+        if (badge) { badge.className = 'text-[10px] font-medium px-2 py-0.5 rounded-full bg-stone-200 text-stone-700'; badge.innerText = 'Disconnected'; }
+        if (dot) dot.className = 'w-3 h-3 rounded-full bg-stone-300';
+        if (devName) devName.innerText = 'No BLE Device Connected';
+        if (unpairedBox) unpairedBox.classList.remove('hidden');
+        if (pairedBox) pairedBox.classList.add('hidden');
+        if (demoBleBtn) { demoBleBtn.className = 'px-2.5 py-1 rounded-lg font-bold bg-stone-200 hover:bg-stone-300 text-stone-800 text-[11px] flex items-center gap-1 transition'; demoBleBtn.innerText = '⚡ Bluetooth Vest'; }
+        if (vestPill) vestPill.className = 'flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-950/80 text-amber-300 border border-amber-800/60 cursor-pointer';
+        if (vestText) vestText.innerText = 'Vest Offline';
+      }
+    }
+
+    function toggleSosBeacon() {
+      isSosActive = !isSosActive;
+      const notice = document.getElementById('disaster-sos-notice');
+      const btnText = document.getElementById('disaster-beacon-text');
+      if (isSosActive) {
+        if (notice) notice.classList.remove('hidden');
+        if (btnText) btnText.innerText = '🚨 SOS ACTIVE — DISTRESS BROADCAST';
+      } else {
+        if (notice) notice.classList.add('hidden');
+        if (btnText) btnText.innerText = 'TRIGGER FIELD SOS DISTRESS';
+      }
+    }
+
+    // Connect to Virtual BLE Smart Vest
+    function connectVirtualBle() {
+      bleState = 'connected';
+      isVestConnected = true;
+      bleDevice = { name: 'Aura-Weave Vest v2 (Virtual BLE)', id: 'VIRT-BLE-VEST-99' };
+      setDataSourceMode('bluetooth');
+      updateBleUi();
+      addBleLog('INFO', 'System', 'Scan', '', 'Initializing virtual Bluetooth Low Energy peripheral...');
+      addBleLog('INFO', 'GATT', 'Connect', '', 'Connected to virtual GATT server [Aura-Weave Vest v2]');
+      addBleLog('INFO', 'Heart Rate', '0x2A37', '', 'Subscribed to 0x2A37 Heart Rate notifications');
+      addBleLog('INFO', 'Health Temp', '0x2A1C', '', 'Subscribed to 0x2A1C Temperature notifications');
+      addBleLog('INFO', 'Pulse Oximeter', '0x2A5F', '', 'Subscribed to 0x2A5F SpO2 continuous notifications');
+      addBleLog('INFO', 'Blood Pressure', '0x2A35', '', 'Subscribed to 0x2A35 Blood Pressure notifications');
+      addBleLog('INFO', 'Vest Telemetry', '0xA001', '', 'Subscribed to 0xA001 Smart Vest Telemetry');
+      addBleLog('INFO', 'System', 'Ready', '', 'Virtual BLE stream active! Live GATT packets streaming.');
+      injectSampleBlePacket('vest');
+    }
+
+    // Packet injector for quick testing without physical peripheral
+    function injectSampleBlePacket(type) {
+      if (type === 'hr') {
+        const bpm = 72 + Math.floor(Math.random() * 32);
+        const dataView = new DataView(new Uint8Array([0x06, bpm]).buffer);
+        const parsed = parseHeartRateMeasurement(dataView);
+        document.getElementById('val-heart').innerText = parsed.heartRate;
+        const dVal = document.getElementById('disaster-val-heart');
+        if (dVal) dVal.innerText = parsed.heartRate;
+        addBleLog('RX', 'Heart Rate', '0x2A37', parsed.rawHex, `Injected: ${parsed.heartRate} bpm (Skin contact OK)`);
+      } else if (type === 'temp') {
+        const tempF = 98.4 + Math.random() * 3.2;
+        const tempC = ((tempF - 32) * 5) / 9;
+        const mantissa = Math.round(tempC * 10);
+        const dataView = new DataView(new Uint8Array([0x00, mantissa & 0xff, (mantissa >> 8) & 0xff, 0x00, 0xff]).buffer);
+        const parsed = parseTemperatureMeasurement(dataView);
+        document.getElementById('val-temp').innerText = parsed.tempF + '°F';
+        const dVal = document.getElementById('disaster-val-temp');
+        if (dVal) dVal.innerText = parsed.tempF + '°F';
+        if (parsed.tempF >= 100.8) setScenario('critical');
+        else if (parsed.tempF >= 99.5) setScenario('warning');
+        else setScenario('normal');
+        addBleLog('RX', 'Health Temp', '0x2A1C', parsed.rawHex, `Injected: ${parsed.tempF}°F (${parsed.tempC}°C)`);
+      } else if (type === 'vest') {
+        const breaths = 14 + Math.floor(Math.random() * 12);
+        const mIdx = Math.floor(Math.random() * 4);
+        const dataView = new DataView(new Uint8Array([breaths, 37, 20, mIdx, 0x50, 0x14, 0x01]).buffer);
+        const parsed = parseVestTelemetry(dataView);
+        document.getElementById('val-breathing').innerText = parsed.breathingRate;
+        const dVal = document.getElementById('disaster-val-breath');
+        if (dVal) dVal.innerText = parsed.breathingRate;
+        document.getElementById('val-motion').innerText = parsed.motionState;
+        addBleLog('RX', 'Vest Telemetry', '0xA001', parsed.rawHex, `Injected Vest: ${breaths} bpm, ${parsed.motionState}`);
+      } else if (type === 'bat') {
+        const bat = Math.max(10, Math.floor(Math.random() * 100));
+        const dataView = new DataView(new Uint8Array([bat]).buffer);
+        const parsed = parseBatteryLevel(dataView);
+        document.getElementById('vest-status-text').innerText = `Vest Connected (${parsed.batteryLevel}%)`;
+        const pBat = document.getElementById('ble-paired-bat');
+        if (pBat) pBat.innerText = parsed.batteryLevel + '%';
+        addBleLog('RX', 'Battery Service', '0x2A19', parsed.rawHex, `Injected Battery: ${bat}%`);
+      } else if (type === 'spo2') {
+        const spo2 = 94 + Math.floor(Math.random() * 5);
+        const sEl = document.getElementById('val-spo2');
+        if (sEl) sEl.innerText = spo2;
+        const dSpo2 = document.getElementById('disaster-val-spo2');
+        if (dSpo2) dSpo2.innerText = spo2 + '%';
+        addBleLog('RX', 'Pulse Oximeter', '0x2A5F', '0x00 0x' + spo2.toString(16).toUpperCase(), `Injected: ${spo2}% SpO2 (Continuous PLX)`);
+      } else if (type === 'bp') {
+        const sys = 125 + Math.floor(Math.random() * 25);
+        const dia = 80 + Math.floor(Math.random() * 15);
+        const bpStr = `${sys}/${dia}`;
+        const bEl = document.getElementById('val-bp');
+        if (bEl) bEl.innerText = bpStr;
+        const dBp = document.getElementById('disaster-val-bp');
+        if (dBp) dBp.innerText = bpStr;
+        addBleLog('RX', 'Blood Pressure', '0x2A35', `0x00 0x${sys.toString(16).toUpperCase()} 0x00 0x${dia.toString(16).toUpperCase()}`, `Injected: ${bpStr} mmHg`);
+      }
+    }
+
+    // Life-like vital oscillations every 3s (active only in simulated mode)
+    setInterval(() => {
+      if (dataSourceMode !== 'simulated' || !isVestConnected) return;
+      if (currentScenario === 'normal') {
+        const driftB = (Math.random() - 0.5) * 0.4;
+        const driftH = Math.floor((Math.random() - 0.5) * 2);
+        const driftT = (Math.random() - 0.5) * 0.04;
+        
+        let b = Math.max(14, Math.min(17, 15.2 + driftB));
+        let h = Math.max(68, Math.min(78, 72 + driftH));
+        let t = Math.max(98.4, Math.min(98.8, 98.6 + driftT));
+
+        document.getElementById('val-breathing').innerText = b.toFixed(1);
+        document.getElementById('val-heart').innerText = h;
+        document.getElementById('val-temp').innerText = t.toFixed(1) + '°F';
+        document.getElementById('sync-timestamp').innerText = 'Sync: Just now';
+
+        const dValBreath = document.getElementById('disaster-val-breath');
+        const dValTemp = document.getElementById('disaster-val-temp');
+        const dValHeart = document.getElementById('disaster-val-heart');
+        if (dValBreath) dValBreath.innerText = b.toFixed(1);
+        if (dValTemp) dValTemp.innerText = t.toFixed(1) + '°F';
+        if (dValHeart) dValHeart.innerText = h;
+
+        // Subtle SpO2 & BP drift
+        const driftSpo2 = Math.random() > 0.8 ? (Math.random() > 0.5 ? 1 : -1) : 0;
+        let s = Math.max(96, Math.min(99, 98 + driftSpo2));
+        const driftSys = Math.floor((Math.random() - 0.5) * 2);
+        const driftDia = Math.floor((Math.random() - 0.5) * 2);
+        let sys = Math.max(115, Math.min(122, 118 + driftSys));
+        let dia = Math.max(73, Math.min(79, 76 + driftDia));
+
+        const valSpo2 = document.getElementById('val-spo2');
+        const dValSpo2 = document.getElementById('disaster-val-spo2');
+        if (valSpo2) valSpo2.innerText = s;
+        if (dValSpo2) dValSpo2.innerText = s;
+
+        const valBp = document.getElementById('val-bp');
+        const dValBp = document.getElementById('disaster-val-bp');
+        if (valBp) valBp.innerText = `${sys}/${dia}`;
+        if (dValBp) dValBp.innerText = `${sys}/${dia}`;
+      }
+    }, 3000);
+
+    // --- PERSISTENT FLOATING CHATBOT ENGINE ---
+    let isChatOpen = false;
+
+    function toggleChat() {
+      isChatOpen = !isChatOpen;
+      const modal = document.getElementById('chat-modal');
+      const icon = document.getElementById('chat-btn-icon');
+      const badge = document.getElementById('chat-btn-badge');
+      if (!modal) return;
+
+      if (isChatOpen) {
+        modal.style.display = 'flex';
+        if (icon) icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+        if (badge) badge.style.display = 'none';
+        const inp = document.getElementById('chat-input');
+        if (inp) inp.focus();
+        scrollChatToBottom();
+      } else {
+        modal.style.display = 'none';
+        if (badge) badge.style.display = 'block';
+        if (icon) icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>';
+      }
+    }
+
+    function scrollChatToBottom() {
+      const container = document.getElementById('chat-messages');
+      if (container) container.scrollTop = container.scrollHeight;
+    }
+
+    function handleChatSubmit(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      sendChatMessage(text);
+    }
+
+    function sendChatMessage(text) {
+      const container = document.getElementById('chat-messages');
+      if (!container) return;
+
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      // Append user bubble
+      const userDiv = document.createElement('div');
+      userDiv.className = 'flex flex-col items-end';
+      userDiv.innerHTML = `
+        <div class="max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed shadow-2xs bg-teal-700 text-white rounded-tr-xs">
+          ${escapeHtml(text)}
+        </div>
+        <span class="text-[9px] text-stone-400 mt-1 px-1">${timeStr}</span>
+      `;
+      container.appendChild(userDiv);
+      scrollChatToBottom();
+
+      // Read current vitals from DOM
+      const curTemp = document.getElementById('val-temp') ? document.getElementById('val-temp').innerText : '98.6°F';
+      const curBreath = document.getElementById('val-breathing') ? document.getElementById('val-breathing').innerText : '15.2';
+      const curHeart = document.getElementById('val-heart') ? document.getElementById('val-heart').innerText : '72';
+      const curSpo2 = document.getElementById('val-spo2') ? document.getElementById('val-spo2').innerText : '98';
+      const curBp = document.getElementById('val-bp') ? document.getElementById('val-bp').innerText : '118/76';
+
+      setTimeout(() => {
+        const lower = text.toLowerCase();
+        let reply = '';
+
+        if (lower.includes('status')) {
+          const statusTitle = currentScenario === 'critical' ? 'Severe Heat Strain' : currentScenario === 'warning' ? 'Heat Caution' : 'Optimal Balance';
+          reply = `Your current status is "${statusTitle}". Core Temp: ${curTemp}, SpO2: ${curSpo2}%, Blood Pressure: ${curBp} mmHg, Heart Rate: ${curHeart} bpm, Breathing: ${curBreath} bpm.`;
+        } else if (lower.includes('breath')) {
+          reply = `Your breathing rate is ${curBreath} breaths/min (Resting normal: 12-20 bpm). ${
+            parseFloat(curBreath) > 22
+              ? 'Breathing is rapid—take slow diaphragmatic breaths and rest in shade.'
+              : 'Respiratory rhythm is calm and well-regulated.'
+          }`;
+        } else if (lower.includes('spo2') || lower.includes('oxygen')) {
+          const sNum = parseInt(curSpo2) || 98;
+          reply = `Your blood oxygen saturation is currently ${curSpo2}% SpO2. ${
+            sNum >= 95
+              ? 'This is in the optimal normal range (95-100%).'
+              : sNum >= 90
+              ? 'Mild hypoxia detected (90-93%). Slow down your pace and hydrate.'
+              : 'Caution: Low blood oxygen detected (<90%). Cease exertion immediately.'
+          }`;
+        } else if (lower.includes('blood pressure') || lower.includes('pressure') || lower.includes('bp')) {
+          reply = `Your arterial blood pressure is currently ${curBp} mmHg. ${
+            curBp.startsWith('15')
+              ? 'High cardiovascular load. Rest immediately in cool shade and drink cool water.'
+              : curBp.startsWith('13') || curBp.startsWith('14')
+              ? 'Moderately elevated arterial pressure from active pacing.'
+              : 'Within healthy target range (<120/80 mmHg).'
+          }`;
+        } else if (lower.includes('temp') || lower.includes('heat') || lower.includes('strain')) {
+          reply = `Core body temperature is ${curTemp}. Local heat index is 98°F (Oak Ridge Trail). ${
+            parseFloat(curTemp) > 99.5
+              ? 'Thermal buildup detected. Move into shade and drink water.'
+              : 'Thermoregulation is within safe limits.'
+          }`;
+        } else if (lower.includes('battery') || lower.includes('vest')) {
+          reply = `Smart vest status: Connected (Simulated Stream) with 84% battery remaining. Battery is sufficient for extended field operation.`;
+        } else if (lower.includes('tip') || lower.includes('hydrat') || lower.includes('water')) {
+          reply = `Under today's 98°F heat index, remember to drink 250 ml of electrolyte fluids every 30 minutes and take 10-minute shade breaks.`;
+        } else {
+          reply = "I'm continuously analyzing your biometric stream. You can ask me about your overall status, breathing rate, SpO2 & blood pressure, core body temperature, or vest battery level.";
+        }
+
+        const botDiv = document.createElement('div');
+        botDiv.className = 'flex flex-col items-start';
+        botDiv.innerHTML = `
+          <div class="max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed shadow-2xs bg-white border border-stone-200 text-stone-800 rounded-tl-xs">
+            ${reply}
+          </div>
+          <span class="text-[9px] text-stone-400 mt-1 px-1">${timeStr}</span>
+        `;
+        container.appendChild(botDiv);
+        scrollChatToBottom();
+      }, 350);
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+  </script>
+
+  <!-- ============================================== -->
+  <!-- EMERGENCY PROTOCOL MODAL & ACTIVE CALL OVERLAY -->
+  <!-- ============================================== -->
+  <div id="emergency-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+    <!-- Countdown Box -->
+    <div id="emergency-countdown-box" class="w-full max-w-sm bg-rose-950 border-2 border-rose-500 rounded-3xl p-6 text-white shadow-2xl shadow-rose-950/80 flex flex-col items-center text-center">
+      <div class="w-16 h-16 rounded-full bg-rose-600/30 border-2 border-rose-500 flex items-center justify-center text-3xl mb-3 animate-pulse">
+        🚨
+      </div>
+      <div class="inline-block px-3 py-1 rounded-full bg-rose-600 text-white font-bold text-xs uppercase tracking-wider mb-2">
+        Critical Protocol Active
+      </div>
+      <h3 class="text-xl font-black text-white">Emergency Call Initiating</h3>
+      <p class="text-xs text-rose-200 mt-1">Severe vitals breach. Calling designated contact automatically.</p>
+      
+      <!-- Countdown number -->
+      <div class="my-5 flex items-center justify-center">
+        <div class="w-24 h-24 rounded-full border-4 border-rose-400 flex flex-col items-center justify-center bg-rose-900/60 shadow-inner">
+          <span id="emergency-countdown-num" class="text-3xl font-black text-white">00:05</span>
+          <span class="text-[10px] text-rose-300 uppercase tracking-wide">Seconds</span>
+        </div>
+      </div>
+
+      <!-- Telemetry snapshot -->
+      <div class="w-full bg-rose-900/40 border border-rose-800 rounded-xl p-2.5 mb-5 grid grid-cols-2 gap-2 text-xs text-left">
+        <div><span class="text-rose-300 text-[10px]">Contact:</span> <div class="font-bold text-white">David Lin</div></div>
+        <div><span class="text-rose-300 text-[10px]">Phone:</span> <div class="font-bold text-rose-200">+1 555-234-8921</div></div>
+        <div><span class="text-rose-300 text-[10px]">Temp:</span> <div class="font-bold text-white">101.4°F</div></div>
+        <div><span class="text-rose-300 text-[10px]">SpO2 / BP:</span> <div class="font-bold text-rose-300">89% | 154/102</div></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="w-full space-y-2">
+        <button onclick="confirmEmergencyCall()" class="w-full py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg transition flex items-center justify-center gap-2 cursor-pointer">
+          📞 Call David Lin Immediately
+        </button>
+        <button onclick="cancelEmergencyCall()" class="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-stone-200 font-semibold text-xs border border-white/20 transition cursor-pointer">
+          Dismiss / False Alarm (I am OK)
+        </button>
+      </div>
+    </div>
+
+    <!-- Active Call Box -->
+    <div id="emergency-active-call" class="hidden w-full max-w-sm bg-stone-900 border-2 border-emerald-500 rounded-3xl p-6 text-white shadow-2xl flex flex-col items-center text-center">
+      <div class="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center text-3xl mb-3 animate-pulse">
+        📞
+      </div>
+      <div class="inline-block px-3 py-1 rounded-full bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 font-bold text-xs uppercase tracking-wider mb-2">
+        Connected • Live Broadcast
+      </div>
+      <h3 class="text-xl font-black text-white">David Lin</h3>
+      <p class="text-xs text-emerald-400 mt-0.5 font-mono">+1 (555) 234-8921</p>
+
+      <div class="my-4 w-full bg-stone-800/80 rounded-2xl p-4 border border-stone-700 text-left space-y-2 text-xs">
+        <div class="flex justify-between border-b border-stone-700 pb-1.5">
+          <span class="text-stone-400">Broadcasting Telemetry:</span>
+          <span class="text-emerald-400 font-bold">● Active (1 Hz)</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-stone-400">GPS Location:</span>
+          <span class="text-white font-mono">Sector B (Oak Ridge Trail)</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-stone-400">Vitals Packet:</span>
+          <span class="text-rose-400 font-bold">Temp: 101.4°F | SpO2: 89%</span>
+        </div>
+      </div>
+
+      <button onclick="endEmergencyCall()" class="w-full py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-lg transition cursor-pointer">
+        End Call
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- PERSISTENT FLOATING CHATBOT MODAL & BUTTON -->
+  <!-- ============================================== -->
+  <div id="chat-modal" style="display: none; bottom: 88px; right: 24px; z-index: 9999;" class="fixed w-[calc(100vw-2rem)] max-w-sm sm:w-96 max-h-[540px] bg-white rounded-3xl shadow-2xl border border-stone-200 flex-col overflow-hidden animate-fadeIn">
+    <!-- Chat Header -->
+    <div class="px-4 py-3.5 bg-gradient-to-r from-teal-800 to-teal-700 text-white flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-teal-100 text-base">
+          🤖
+        </div>
+        <div>
+          <div class="font-bold text-xs flex items-center gap-1.5">
+            Aura-Weave Assistant
+            <span class="text-[9px] uppercase px-1.5 py-0.2 rounded-full bg-teal-600 text-teal-100 font-semibold">
+              AI
+            </span>
+          </div>
+          <div class="text-[10px] text-teal-200">
+            Real-time biometrics & safety advice
+          </div>
+        </div>
+      </div>
+      <button
+        onclick="toggleChat()"
+        class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition cursor-pointer text-xs"
+        aria-label="Close Assistant"
+      >
+        ✕
+      </button>
+    </div>
+
+    <!-- Message History Area -->
+    <div id="chat-messages" class="flex-1 p-3.5 overflow-y-auto space-y-3 bg-stone-50/60 min-h-[220px] max-h-[280px]">
+      <!-- Default Welcome Message -->
+      <div class="flex flex-col items-start">
+        <div class="max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed shadow-2xs bg-white border border-stone-200 text-stone-800 rounded-tl-xs">
+          Hello! I'm your Aura-Weave biometrics assistant. I continuously monitor your core temperature, breathing rhythm, SpO2, and blood pressure. How can I assist your pacing today?
+        </div>
+        <span class="text-[9px] text-stone-400 mt-1 px-1">Just now</span>
+      </div>
+    </div>
+
+    <!-- Quick Suggestion Prompt Chips -->
+    <div class="px-3 py-2 bg-stone-50 border-t border-stone-100 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+      <button onclick="sendChatMessage('What does my status mean?')" class="whitespace-nowrap text-[11px] px-2.5 py-1 rounded-full bg-white hover:bg-teal-50 hover:text-teal-800 hover:border-teal-300 text-stone-600 border border-stone-200 transition font-medium shadow-2xs cursor-pointer">What does my status mean?</button>
+      <button onclick="sendChatMessage('How is my breathing?')" class="whitespace-nowrap text-[11px] px-2.5 py-1 rounded-full bg-white hover:bg-teal-50 hover:text-teal-800 hover:border-teal-300 text-stone-600 border border-stone-200 transition font-medium shadow-2xs cursor-pointer">How's my breathing?</button>
+      <button onclick="sendChatMessage('Check SpO2 & BP')" class="whitespace-nowrap text-[11px] px-2.5 py-1 rounded-full bg-white hover:bg-teal-50 hover:text-teal-800 hover:border-teal-300 text-stone-600 border border-stone-200 transition font-medium shadow-2xs cursor-pointer">Check SpO2 & BP</button>
+      <button onclick="sendChatMessage('Vest battery')" class="whitespace-nowrap text-[11px] px-2.5 py-1 rounded-full bg-white hover:bg-teal-50 hover:text-teal-800 hover:border-teal-300 text-stone-600 border border-stone-200 transition font-medium shadow-2xs cursor-pointer">Vest battery</button>
+      <button onclick="sendChatMessage('Tips for heat strain')" class="whitespace-nowrap text-[11px] px-2.5 py-1 rounded-full bg-white hover:bg-teal-50 hover:text-teal-800 hover:border-teal-300 text-stone-600 border border-stone-200 transition font-medium shadow-2xs cursor-pointer">Tips for heat strain</button>
+    </div>
+
+    <!-- Chat Text Input Form -->
+    <form onsubmit="handleChatSubmit(event)" class="p-2.5 bg-white border-t border-stone-100 flex items-center gap-2">
+      <input
+        type="text"
+        id="chat-input"
+        placeholder="Ask about your vitals or safety..."
+        class="flex-1 px-3.5 py-2 rounded-xl bg-stone-100 text-xs text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-teal-500/40 border border-transparent focus:border-teal-500"
+      />
+      <button
+        type="submit"
+        class="p-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white transition cursor-pointer flex items-center justify-center w-8 h-8 font-bold text-xs"
+        aria-label="Send message"
+      >
+        ➤
+      </button>
+    </form>
+  </div>
+
+  <!-- Persistent Floating Chatbot Button (56px circular, bottom-right, MessageCircle icon only, NO ML label) -->
+  <button
+    id="chat-floating-btn"
+    onclick="toggleChat()"
+    style="position: fixed; bottom: 24px; right: 24px; z-index: 9998;"
+    class="w-14 h-14 rounded-full bg-gradient-to-tr from-teal-800 to-teal-600 hover:from-teal-700 hover:to-teal-500 text-white shadow-xl shadow-teal-950/25 ring-2 ring-white/90 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer"
+    aria-label="Toggle Aura-Weave Assistant"
+    title="Aura-Weave Assistant"
+  >
+    <span id="chat-btn-icon" class="flex items-center justify-center">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+    </span>
+    <span id="chat-btn-badge" class="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 border-2 border-white rounded-full animate-pulse"></span>
+  </button>
+</body>
+</html>
